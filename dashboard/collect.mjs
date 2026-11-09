@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadRepos } from './repos.mjs';
+import { fromSnapshot } from './snapshot.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 const OUT = join(ROOT, 'data');
@@ -152,13 +153,23 @@ function mainCi() {
     .map((r) => ({ at: r.createdAt, failed: r.conclusion === 'failure' }));
 }
 
-function codeScanning() {
-  try {
-    return sh('gh', ['api', `repos/${CONFIG.repo}/code-scanning/alerts?per_page=100`, '--paginate', '--jq', '.[]|select(.tool.name=="CodeQL")|{created:.created_at,fixed:.fixed_at,dismissed:.dismissed_at,state,severity:(.rule.security_severity_level // .rule.severity)}|tojson'])
-      .split('\n').filter(Boolean).map((l) => JSON.parse(l));
-  } catch (e) {
-    console.warn('code scanning unavailable:', String(e).slice(0, 200));
+function snapshot() {
+  const id = sh('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts?name=review-snapshot&per_page=1`, '--jq', '.artifacts[]|select(.expired|not)|.id']).trim();
+  if (!id) {
+    console.warn('no review snapshot: code scanning unknown');
     return undefined;
+  }
+  const tmp = join(CACHE, `snapshot-${Number(id)}`);
+  mkdirSync(tmp, { recursive: true });
+  try {
+    writeFileSync(join(tmp, 'a.zip'), execFileSync('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts/${Number(id)}/zip`], { maxBuffer: 64 * 1024 * 1024 }));
+    execFileSync('unzip', ['-o', '-q', join(tmp, 'a.zip'), '-d', tmp]);
+    return fromSnapshot(JSON.parse(readFileSync(join(tmp, 'review-snapshot.json'), 'utf8')));
+  } catch (e) {
+    console.warn('review snapshot unreadable:', String(e).slice(0, 200));
+    return undefined;
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
   }
 }
 
@@ -220,22 +231,17 @@ function collect() {
     const path = join(ROOT, 'inputs', CONFIG.repo, file);
     return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
   };
-  let shadowPercent = 0;
-  try {
-    shadowPercent = Number(sh('gh', ['variable', 'get', 'REVIEW_SHADOW_PERCENT', '-R', CONFIG.repo]).trim()) || 0;
-  } catch {
-    shadowPercent = 0;
-  }
+  const snap = snapshot();
 
   const data = {
     schema: 'digdir.ai-review.dashboard/v1',
     generatedAt: new Date().toISOString(),
     config: { repo: CONFIG.repo, baselineFrom: CONFIG.baselineFrom, start: CONFIG.start, experiment: CONFIG.experiment },
-    setup: { shadowPercent },
+    setup: { shadowPercent: snap?.shadowPercent ?? 0 },
     prs,
     runs,
     ci: mainCi(),
-    codeql: codeScanning(),
+    codeql: snap?.codeql,
     azure: azureCost(),
     grading: optional('grading.json'),
     pulse: optional('pulse.json'),

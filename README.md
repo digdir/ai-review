@@ -8,7 +8,7 @@ Later this repository will also hold the reusable review workflow and its config
 
 A scheduled workflow runs every hour on weekdays:
 
-1. `dashboard/collect.mjs` reads pull requests, review threads, run records, CI, code scanning where it can read it, and Azure cost for each repository in `repos/`, and writes `data/repos/<owner>/<name>.json` and `data/index.json`. A repository that fails is marked on the overview and does not stop the others. It stores no logins.
+1. `dashboard/collect.mjs` reads pull requests, review threads, run records, CI, the daily review snapshot (CodeQL alerts and shadow share) and Azure cost for each repository in `repos/`, and writes `data/repos/<owner>/<name>.json` and `data/index.json`. A repository that fails is marked on the overview and does not stop the others. It stores no logins.
 2. `npm run build` builds the dashboard with Vite into `dist/`, with the data bundled in, so the result is a static site.
 3. The workflow deploys `dist/` to Azure Static Web Apps. Only accounts in the tenant that holds the Static Web App can open it.
 

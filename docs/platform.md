@@ -52,12 +52,12 @@ jobs:
 }
 ```
 
-A repository without `experiment` gets the review and the plain numbers (findings, fixes, noise, time to merge, cost), without arms and significance. `npm run add-repo digdir/<name>` writes the file, checks that the App is installed, and prints the caller to paste.
+A repository without `experiment` gets the review and the plain numbers (findings, fixes, noise, time to merge, cost), without arms and significance. `npm run add-repo digdir/<name>` writes the file, checks that the repository is public, and prints the caller to paste.
 
 ## Collecting
 
 - `collect.mjs` loops over `repos/`, writes `data/<owner>/<name>.json` and an `index.json`, and keeps its cache per repository. One repository that fails is reported on the overview and does not stop the others.
-- The workflow reads each repository with its own token, so a repository must be public. Its token cannot read a repository's code-scanning alerts, so the dashboard shows them as not available until the review adds them to its run record (step 2).
+- The workflow reads each repository with its own token, so a repository must be public. That token cannot read a repository's code-scanning alerts, so each repository runs a small `review-snapshot` workflow once a day that writes its CodeQL alerts and shadow share to an artifact, and the collector reads that. Without a snapshot, code scanning shows as not available.
 - **Cost.** Azure cost per resource group only works for genki, which has its own. For the rest, cost comes from the tokens in each run record times the model price, with the Azure total for the shared Foundry resource as a check.
 
 ## The dashboard
@@ -78,9 +78,10 @@ Proposed: public repositories only until a private one asks.
 ## Order
 
 1. Settings per repository and the overview page, with genki as the only entry. No change in what genki sees. Done.
-2. Move the review here as a reusable workflow, and switch genki to call it.
-3. A second repository, chosen together with its team, joins with `add-repo`. Whatever was hard there goes into the README.
-4. Cost from run records, so repositories without their own resource group get a cost.
+2. Code scanning through a daily snapshot in each repository, so no GitHub App is needed.
+3. After the experiment's week-6 decision, if the review stays: move it here as a reusable workflow and switch genki to call it. Not before, so the setup being measured does not change halfway.
+4. A second repository, chosen together with its team, joins as [joining.md](joining.md) says. Whatever was hard there goes into the README.
+5. Cost from run records, so repositories without their own resource group get a cost.
 
 ## Open questions
 
