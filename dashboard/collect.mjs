@@ -158,7 +158,7 @@ function codeScanning() {
       .split('\n').filter(Boolean).map((l) => JSON.parse(l));
   } catch (e) {
     console.warn('code scanning unavailable:', String(e).slice(0, 200));
-    return [];
+    return undefined;
   }
 }
 

@@ -38,8 +38,13 @@
   >
     {m.riskMismatch ? `${fmt(m.riskMismatch)} sensitive marked low` : 'no sensitive PR marked low'}
   </Stat>
-  <Stat label="Open CodeQL alerts" value={fmt(openAlerts)} status={openAlerts ? 'wait' : 'ok'} help="Alerts from code scanning that are still open.">
-    {fmt(m.codeql.length)} since the baseline
+  <Stat
+    label="Open CodeQL alerts"
+    value={m.codeqlKnown ? fmt(openAlerts) : '–'}
+    status={m.codeqlKnown ? (openAlerts ? 'wait' : 'ok') : null}
+    help="Alerts from code scanning that are still open."
+  >
+    {m.codeqlKnown ? `${fmt(m.codeql.length)} since the baseline` : 'not readable with the workflow token'}
   </Stat>
 </div>
 <div class="grid grid-2">
@@ -81,6 +86,9 @@
     </div>
   </div>
   <p class="hint">What the automated checks found. The review should find something else, not the same thing.</p>
+  {#if !m.codeqlKnown}
+    <p class="empty">Not available: the workflow token cannot read this repository's code-scanning alerts.</p>
+  {:else}
   <Bars
     rows={m.weeks}
     value={(w) => w.codeql}
@@ -90,4 +98,5 @@
     height={180}
     tip={(w) => `Week of ${day(w.w)}: ${w.codeql} new alerts`}
   />
+  {/if}
 </div>

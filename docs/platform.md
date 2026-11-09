@@ -57,7 +57,7 @@ A repository without `experiment` gets the review and the plain numbers (finding
 ## Collecting
 
 - `collect.mjs` loops over `repos/`, writes `data/<owner>/<name>.json` and an `index.json`, and keeps its cache per repository. One repository that fails is reported on the overview and does not stop the others.
-- The GitHub App is installed on the repositories that join, and the token step lists them from `repos/`.
+- The workflow reads each repository with its own token, so a repository must be public. Its token cannot read a repository's code-scanning alerts, so the dashboard shows them as not available until the review adds them to its run record (step 2).
 - **Cost.** Azure cost per resource group only works for genki, which has its own. For the rest, cost comes from the tokens in each run record times the model price, with the Azure total for the shared Foundry resource as a check.
 
 ## The dashboard

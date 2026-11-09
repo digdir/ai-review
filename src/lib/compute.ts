@@ -124,6 +124,7 @@ export function compute(D: Data, C: ExperimentConfig) {
   const withSec = new Set(secFindings.map((f) => f.pr));
   const riskFilled = (ps: Pr[]) => r(ps.filter((p) => p.risk).length, ps.length);
   const riskMismatch = since.filter((p) => p.sensitive && p.risk === 'low').length;
+  const codeqlKnown = D.codeql !== undefined;
   const codeql = D.codeql ?? [];
   const ciMissed = onMerged.filter((f) => f.severity === 'Important' && f.outcome === 'fixed').length;
   const queued = since.filter((p) => p.queued).map((p) => (mergedAt(p) - ms(p.queued!)) / 6e4);
@@ -426,7 +427,7 @@ export function compute(D: Data, C: ExperimentConfig) {
     now, startMs, week, base, since, treated, shadow, reviews, reviewedSet, reviewedCount, F, posted, onMerged, bySev, important, kinds,
     early, late, dismissed, preexisting, perPr, perPrMean, humanThreads, humanRate, precision, followAcc, grades, weeks, baseAvg,
     baseT, treatedT, shadowT, mergeChange, reworkBase, reworkSince, monthNok, projected, haveAzure, monthStart, monthEnd,
-    records, subagentsMedian, criteria, met, byCat, secFindings, sensSince, sensBase, withSec, riskFilled, riskMismatch, codeql,
+    records, subagentsMedian, criteria, met, byCat, secFindings, sensSince, sensBase, withSec, riskFilled, riskMismatch, codeql, codeqlKnown,
     ciMissed, queued, decisionMs, running, lastRun, runsToday, events, createdSince, botsSince, followUps, fixedN, dismissedN,
     shadowN, setup, hist, areas, sensitiveRows, costPerPr, reviewCost, followCost, shadowCost, costDays, daysInMonth,
     monthCumulative, runsNewest, failedRuns, coverage, firstReview, reviewTime, failRate, totalCost, costPerFix, ignored,

@@ -8,7 +8,7 @@ Later this repository will also hold the reusable review workflow and its config
 
 A scheduled workflow runs every hour on weekdays:
 
-1. `dashboard/collect.mjs` reads pull requests, review threads, run records, CI, code scanning and Azure cost for each repository in `repos/`, and writes `data/repos/<owner>/<name>.json` and `data/index.json`. A repository that fails is marked on the overview and does not stop the others. It stores no logins.
+1. `dashboard/collect.mjs` reads pull requests, review threads, run records, CI, code scanning where it can read it, and Azure cost for each repository in `repos/`, and writes `data/repos/<owner>/<name>.json` and `data/index.json`. A repository that fails is marked on the overview and does not stop the others. It stores no logins.
 2. `npm run build` builds the dashboard with Vite into `dist/`, with the data bundled in, so the result is a static site.
 3. The workflow deploys `dist/` to Azure Static Web Apps. Only accounts in the tenant that holds the Static Web App can open it.
 
@@ -31,7 +31,7 @@ Each repository on the dashboard has one settings file, `repos/<owner>/<name>.js
 }
 ```
 
-`azure` is optional; without it, cost is taken from the run records. The GitHub App must be installed on the repository. Only `digdir` repositories for now. See [docs/platform.md](docs/platform.md) for where this is going.
+`azure` is optional; without it, cost is taken from the run records. The repository must be public, since the workflow reads it with its own token. See [docs/platform.md](docs/platform.md) for where this is going.
 
 ## Run it locally
 
@@ -52,8 +52,6 @@ Tick "Sample data" in the top bar to see it with sample data in the real shape.
 ## Setup
 
 These are done once, by someone with rights in the digdir organisation and the Azure subscription.
-
-**GitHub App.** A private App installed on the repositories in `repos/` only, with read access to actions, contents, pull requests, code scanning alerts and variables. Store its client ID as the variable `REVIEW_APP_CLIENT_ID` and its private key as the secret `REVIEW_APP_PRIVATE_KEY` in the `production` environment. The same App can later post the reviews, so the bot gets its own name.
 
 **Azure.**
 

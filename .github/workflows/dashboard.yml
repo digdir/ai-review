@@ -28,19 +28,6 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      - name: List the repositories on the dashboard
-        id: repos
-        run: |
-          names=$(find repos/digdir -name '*.json' -exec basename {} .json \; | sort | paste -sd, -)
-          [ -n "$names" ] || { echo "No repositories in repos/digdir"; exit 1; }
-          echo "names=$names" >> "$GITHUB_OUTPUT"
-      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
-        id: app
-        with:
-          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
-          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
-          owner: digdir
-          repositories: ${{ steps.repos.outputs.names }}
       - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
         with:
           client-id: ${{ vars.AZURE_CLIENT_ID }}
@@ -55,7 +42,7 @@ jobs:
       - run: npm run check
       - run: npm run collect
         env:
-          GH_TOKEN: ${{ steps.app.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
       - run: npm run build
       - name: Deploy
         env:
