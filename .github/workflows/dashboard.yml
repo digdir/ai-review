@@ -1,0 +1,67 @@
+name: dashboard
+
+on:
+  schedule:
+    - cron: '17 5-17 * * 1-5'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['dashboard/**', 'src/**', 'public/**', 'index.html', 'package.json', 'package-lock.json', 'vite.config.ts', 'svelte.config.js', 'repos/**', 'inputs/**', '.github/workflows/dashboard.yml']
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: dashboard
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - name: List the repositories on the dashboard
+        id: repos
+        run: |
+          names=$(find repos/digdir -name '*.json' -exec basename {} .json \; | sort | paste -sd, -)
+          [ -n "$names" ] || { echo "No repositories in repos/digdir"; exit 1; }
+          echo "names=$names" >> "$GITHUB_OUTPUT"
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        id: app
+        with:
+          client-id: ${{ vars.REVIEW_APP_CLIENT_ID }}
+          private-key: ${{ secrets.REVIEW_APP_PRIVATE_KEY }}
+          owner: digdir
+          repositories: ${{ steps.repos.outputs.names }}
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data/cache
+          key: review-runs-${{ github.run_id }}
+          restore-keys: review-runs-
+      - run: npm ci
+      - run: npm run check
+      - run: npm run collect
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+      - run: npm run build
+      - name: Deploy
+        env:
+          SWA_NAME: ${{ vars.SWA_NAME }}
+          SWA_RESOURCE_GROUP: ${{ vars.SWA_RESOURCE_GROUP }}
+        run: |
+          token=$(az staticwebapp secrets list --name "$SWA_NAME" --resource-group "$SWA_RESOURCE_GROUP" --query properties.apiKey -o tsv)
+          echo "::add-mask::$token"
+          npx --yes @azure/static-web-apps-cli@2.1.0 deploy dist --deployment-token "$token" --env production

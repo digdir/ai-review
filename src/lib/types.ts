@@ -1,0 +1,125 @@
+export type Severity = 'Important' | 'Nit' | 'Pre-existing' | (string & {});
+export type Outcome = 'fixed' | 'resolved' | 'outdated' | 'dismissed' | 'discussed' | 'open' | (string & {});
+export type Arm = 'treated' | 'shadow' | null;
+export type AuthorKind = 'agent' | 'human_ai' | 'unknown' | null;
+
+export interface Finding {
+  posted: string;
+  severity: Severity;
+  category?: string | null;
+  path: string;
+  outcome: Outcome;
+  replies: number;
+  suggestion?: boolean;
+  url: string;
+}
+
+export interface HumanThread {
+  posted: string;
+  outcome: Outcome;
+}
+
+export interface Pr {
+  n: number;
+  title: string;
+  state: string;
+  draft: boolean;
+  created: string;
+  merged: string | null;
+  lines: number;
+  files: string[];
+  bot: boolean;
+  sensitive?: boolean;
+  risk?: string | null;
+  queued?: string | null;
+  human_review: boolean;
+  arm: Arm;
+  author_kind: AuthorKind;
+  findings: Finding[];
+  human_threads?: HumanThread[];
+}
+
+export interface Run {
+  run_id: string;
+  pr_number?: number | null;
+  job?: 'review' | 'follow-up';
+  arm?: Arm;
+  started_at: string;
+  completed?: boolean;
+  duration_s?: number | null;
+  turns?: number | null;
+  subagents?: number | null;
+  model?: string | null;
+  cost_usd?: number | null;
+  author_kind?: AuthorKind;
+  findings?: number | null;
+  source?: 'record' | 'log';
+  prompt_version?: string | null;
+  review_again?: boolean;
+  lines_changed?: number | null;
+  tokens?: { input?: number; output?: number; cache_read?: number } | null;
+}
+
+export interface CiRun {
+  at: string;
+  failed: boolean;
+}
+
+export interface CodeqlAlert {
+  created: string;
+  state: string;
+  severity?: string;
+}
+
+export interface AzureDay {
+  date: string;
+  nok: number;
+  currency?: string;
+}
+
+export interface Grading {
+  grades: { severity: Severity; grade: 'right_worth' | 'right_not_worth' | 'wrong' | 'unclear' }[];
+  followup: { correct: boolean }[];
+  agreement?: number | null;
+}
+
+export interface Pulse {
+  week: number;
+  n: number;
+  useful: number;
+  noise: number;
+}
+
+export interface ExperimentConfig {
+  weeks: number;
+  budgetNok: number;
+  usdNok: number;
+  minCell: number;
+  humanBand: [number, number];
+  importantMin: number;
+  dismissedMax: number;
+  ciMissedMin: number;
+  precisionMin: number;
+  mergeMaxIncrease: number;
+  reworkMaxIncrease: number;
+  privacyConfirmed: boolean;
+  gradersFound: boolean;
+  sensitiveChannel: boolean;
+}
+
+export interface Data {
+  schema: string;
+  generatedAt: string;
+  config: { repo: string; baselineFrom: string; start: string; experiment?: Partial<ExperimentConfig> };
+  setup?: { shadowPercent?: number };
+  prs: Pr[];
+  runs: Run[];
+  ci: CiRun[];
+  codeql?: CodeqlAlert[];
+  azure: AzureDay[];
+  grading?: Grading | null;
+  pulse?: Pulse[] | null;
+  now?: number;
+}
+
+export type Status = 'ok' | 'bad' | 'early' | 'wait';

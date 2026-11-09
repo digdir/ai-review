@@ -1,0 +1,16 @@
+{
+  "repo": "digdir/genki",
+  "baselineFrom": "2026-10-19",
+  "start": "2026-11-09",
+  "workflows": { "review": "review.yml", "ci": "ci.yml" },
+  "azure": { "subscription": "b54aa593-19d9-4bf4-8ff8-c30bc8bb3d45", "resourceGroup": "rg-genki-review-swc" },
+  "experiment": {
+    "weeks": 6,
+    "budgetNok": 7500,
+    "usdNok": 10.9,
+    "minCell": 5,
+    "privacyConfirmed": false,
+    "gradersFound": false,
+    "sensitiveChannel": false
+  }
+}
