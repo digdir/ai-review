@@ -14,7 +14,7 @@ A scheduled workflow runs every hour on weekdays:
 
 The dashboard opens on an overview of every repository (`#/`), and each repository has its own tabs (`#/<owner>/<name>/<tab>`). It is Svelte 5 and TypeScript, built with Vite, without SvelteKit. The metrics live in `src/lib/compute.ts`, one component per tab in `src/tabs/`. The text is in English. Styles come from Designsystemet (`@digdir/designsystemet-css` and the Digdir theme). See `AGENTS.md` for the layout and commands.
 
-`inputs/<owner>/<name>/grading.json` and `pulse.json` are optional. When present, the dashboard shows hand grading and pulse survey results.
+`inputs/<owner>/<name>/grading.json`, `pulse.json` and `changes.json` are optional. When present, the dashboard shows hand grading, pulse survey results and the change log. How they are filled in, and the rest of the experiment, is in [docs/experiment.md](docs/experiment.md).
 
 ## Repositories
 

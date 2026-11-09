@@ -245,6 +245,7 @@ function collect() {
     azure: azureCost(),
     grading: optional('grading.json'),
     pulse: optional('pulse.json'),
+    changes: optional('changes.json'),
   };
   mkdirSync(join(OUT, 'repos', CONFIG.repo.split('/')[0]), { recursive: true });
   writeFileSync(join(OUT, 'repos', `${CONFIG.repo}.json`), JSON.stringify(data));

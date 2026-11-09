@@ -246,6 +246,7 @@ export function compute(D: Data, C: ExperimentConfig) {
   const runsToday = D.runs.filter((x) => x.started_at.slice(0, 10) === today).length;
 
   const events: FeedEvent[] = [
+    ...(D.changes ?? []).map((c) => ({ t: c.date, kind: 'CHANGE', cls: 'k-change', text: `${c.kind} · ${c.ref ? c.ref.replace(/^.*#/, '#') + ' · ' : ''}${c.note}` })),
     ...D.runs.map((x) => ({
       t: x.started_at,
       kind: x.completed === false ? 'FAILED' : JOB_SHORT[x.job ?? 'review'],

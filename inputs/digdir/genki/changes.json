@@ -1,0 +1,12 @@
+[
+  {
+    "date": "2026-11-09",
+    "kind": "setup",
+    "note": "Start of the experiment. Silent share set to 25 percent."
+  },
+  {
+    "date": "2026-11-09",
+    "kind": "protocol",
+    "note": "Protocol written in docs/experiment.md before the first results."
+  }
+]

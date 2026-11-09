@@ -45,7 +45,7 @@ body { margin: 0; background: var(--ds-color-neutral-background-default); color:
 .feed li { display: grid; grid-template-columns: 3.2rem 5.2rem minmax(0, 1fr); gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--ds-color-neutral-border-subtle); align-items: baseline; }
 .feed time { color: var(--ds-color-neutral-text-subtle); }
 .feed .kind { font-weight: 600; letter-spacing: .04em; }
-.feed .k-run { color: var(--ds-color-info-text-default); } .feed .k-imp { color: var(--ds-color-danger-text-default); } .feed .k-find { color: var(--ds-color-neutral-text-default); } .feed .k-fix { color: var(--ds-color-success-text-default); } .feed .k-fail { color: var(--ds-color-danger-text-default); }
+.feed .k-run { color: var(--ds-color-info-text-default); } .feed .k-imp { color: var(--ds-color-danger-text-default); } .feed .k-find { color: var(--ds-color-neutral-text-default); } .feed .k-fix { color: var(--ds-color-success-text-default); } .feed .k-fail { color: var(--ds-color-danger-text-default); } .feed .k-change { color: var(--ds-color-warning-text-default); }
 .feed span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ds-color-neutral-text-subtle); }
 .chain { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 0; counter-reset: st; }
 .chain li { position: relative; padding: 10px 14px 12px; border: 1px solid var(--ds-color-neutral-border-subtle); margin-right: 18px; border-radius: 4px; background: var(--ds-color-neutral-background-default); }

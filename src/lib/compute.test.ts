@@ -37,6 +37,13 @@ function reviewedWithFindings(count: number, outcomes: (i: number) => string, se
 
 const status = (d: Data, name: RegExp) => compute(d, DEFAULTS).criteria.find((c) => name.test(c.name))!.status;
 
+describe('change log', () => {
+  it('shows each logged change in the feed with its kind and pull request', () => {
+    const d = { ...data([]), changes: [{ date: '2026-11-12', kind: 'rule' as const, ref: 'digdir/genki#430', note: 'Tighter rule for tenant checks' }] };
+    expect(compute(d, DEFAULTS).events).toContainEqual(expect.objectContaining({ kind: 'CHANGE', text: 'rule · #430 · Tighter rule for tenant checks' }));
+  });
+});
+
 describe('criteria', () => {
   it('waits with the Important fixed rate until there are ten findings', () => {
     expect(status(reviewedWithFindings(9, () => 'fixed'), /Important fix rate/)).toBe('early');

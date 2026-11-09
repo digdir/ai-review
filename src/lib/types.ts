@@ -77,6 +77,13 @@ export interface AzureDay {
   currency?: string;
 }
 
+export interface Change {
+  date: string;
+  kind: 'rule' | 'model' | 'procedure' | 'workflow' | 'setup' | 'protocol';
+  ref?: string;
+  note: string;
+}
+
 export interface Grading {
   grades: { severity: Severity; grade: 'right_worth' | 'right_not_worth' | 'wrong' | 'unclear' }[];
   followup: { correct: boolean }[];
@@ -119,6 +126,7 @@ export interface Data {
   azure: AzureDay[];
   grading?: Grading | null;
   pulse?: Pulse[] | null;
+  changes?: Change[] | null;
   now?: number;
 }
 
