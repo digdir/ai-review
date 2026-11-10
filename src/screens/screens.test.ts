@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULTS, compute } from '../lib/compute';
 import { fleet } from '../lib/fleet';
 import { sample, type SampleState } from '../lib/sample';
+import Board from '../lib/ui/Board.svelte';
 import Docs from '../views/Docs.svelte';
 import Fleet from '../views/Fleet.svelte';
 import Start from '../views/Start.svelte';
@@ -82,5 +83,30 @@ describe('docs and charts', () => {
     const repo = render(Repository, { props: { data, m, author: null, username: '', onusername: () => {} } }).body;
     expect(repo).toContain('aria-label="Findings per reviewed pull request by week"');
     expect(repo).toContain('aria-label="Mean posted findings per pull request, by size"');
+  });
+});
+
+describe('explanations on the status board', () => {
+  const data = sample('measuring');
+  const m = compute(data, DEFAULTS);
+  const body = (initialOpen: string | null) =>
+    render(Board, { props: { m, config: DEFAULTS, collected: data.generatedAt, ok: true, initialOpen } }).body;
+
+  it('shows the opened tile text in a panel below the board and keeps the tile value', () => {
+    const html = body('Phase');
+    const board = html.indexOf('</section>');
+    const panel = html.indexOf('board-explain');
+    expect(panel).toBeGreaterThan(board);
+    expect(html.slice(panel)).toMatch(/Where the experiment is on its calendar/);
+    expect(html.slice(0, board)).toMatch(/Day \d+ of 42/);
+    expect(html.slice(0, board)).not.toMatch(/Where the experiment is on its calendar/);
+    expect(html).toMatch(/aria-expanded="true"[^>]*aria-controls="([^"]+)"/);
+    expect(html).toMatch(/class="[^"]*\bopen\b/);
+  });
+
+  it('shows no explanation text when nothing is open', () => {
+    const html = body(null);
+    expect(html).not.toMatch(/Where the experiment is on its calendar/);
+    expect(html).toMatch(/board-explain[^>]*hidden/);
   });
 });
