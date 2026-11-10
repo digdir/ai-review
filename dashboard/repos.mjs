@@ -14,6 +14,9 @@ export function problems(repo, file) {
   if (DATE.test(repo.start ?? '') && DATE.test(repo.baselineFrom ?? '') && repo.baselineFrom > repo.start) out.push('baselineFrom must be before start');
   for (const k of ['review', 'ci']) if (!/^[\w.-]+\.ya?ml$/.test(repo.workflows?.[k] ?? '')) out.push(`workflows.${k} must be a workflow file name`);
   if (repo.azure && !(repo.azure.subscription && repo.azure.resourceGroup)) out.push('azure needs subscription and resourceGroup');
+  for (const [kind, globs] of Object.entries(repo.changePaths ?? {}))
+    if (!['rule', 'workflow', 'procedure'].includes(kind) || !Array.isArray(globs) || !globs.length || globs.some((g) => typeof g !== 'string' || !g))
+      out.push(`changePaths.${kind} must be rule, workflow or procedure with a list of paths`);
   return out;
 }
 

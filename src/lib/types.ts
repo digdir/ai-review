@@ -12,6 +12,7 @@ export interface Finding {
   replies: number;
   suggestion?: boolean;
   url: string;
+  line?: number | null;
 }
 
 export interface HumanThread {
@@ -37,6 +38,8 @@ export interface Pr {
   author_kind: AuthorKind;
   findings: Finding[];
   human_threads?: HumanThread[];
+  escaped?: boolean;
+  head?: string | null;
 }
 
 export interface Run {
@@ -82,6 +85,7 @@ export interface Change {
   kind: 'rule' | 'model' | 'procedure' | 'workflow' | 'setup' | 'protocol';
   ref?: string;
   note: string;
+  source?: 'auto' | 'manual';
 }
 
 export interface Grading {
@@ -102,6 +106,7 @@ export interface ExperimentConfig {
   budgetNok: number;
   usdNok: number;
   minCell: number;
+  measureFromWeek: number;
   humanBand: [number, number];
   importantMin: number;
   dismissedMax: number;

@@ -34,4 +34,15 @@ describe('repository settings', () => {
     const repos = loadRepos(join(import.meta.dirname, '..', 'repos'));
     expect(repos.map((r) => r.repo)).toContain('digdir/genki');
   });
+
+  it('accepts its own paths for changes in the review setup', () => {
+    expect(problems({ ...good, changePaths: { rule: ['docs/review-rules.md'] } }, 'digdir/example.json')).toEqual([]);
+  });
+
+  it('rejects change paths for an unknown kind or without paths', () => {
+    expect(problems({ ...good, changePaths: { rules: ['REVIEW.md'], workflow: [] } }, 'digdir/example.json')).toEqual([
+      'changePaths.rules must be rule, workflow or procedure with a list of paths',
+      'changePaths.workflow must be rule, workflow or procedure with a list of paths',
+    ]);
+  });
 });

@@ -35,7 +35,8 @@ function reviewedWithFindings(count: number, outcomes: (i: number) => string, se
   return data(prs, prs.map((p) => review(p.n)));
 }
 
-const status = (d: Data, name: RegExp) => compute(d, DEFAULTS).criteria.find((c) => name.test(c.name))!.status;
+const FROM_WEEK_1 = { ...DEFAULTS, measureFromWeek: 1 };
+const status = (d: Data, name: RegExp) => compute(d, FROM_WEEK_1).criteria.find((c) => name.test(c.name))!.status;
 
 describe('change log', () => {
   it('shows each logged change in the feed with its kind and pull request', () => {
@@ -71,6 +72,53 @@ describe('criteria', () => {
     const d = reviewedWithFindings(4, (i) => (i < 3 ? 'fixed' : 'open'));
     expect(compute(d, DEFAULTS).ciMissed).toBe(3);
     expect(status(d, /automated checks/)).toBe('ok');
+  });
+});
+
+describe('measurement weeks', () => {
+  const inWeek = (count: number, day: string, outcome: (i: number) => string, now: string) => {
+    const prs = Array.from({ length: count }, (_, i) =>
+      pr(600 + i, `${day}T08:00:00Z`, `${day}T12:00:00Z`, { arm: 'treated', findings: [finding(outcome(i), 'Important', { posted: iso(`${day}T10:00:00Z`) })] }),
+    );
+    return data(prs, prs.map((p) => review(p.n, `${day}T09:00:00Z`)), now);
+  };
+  const criterion = (d: Data, name: RegExp) => compute(d, DEFAULTS).criteria.find((c) => name.test(c.name))!;
+
+  it('leaves findings from the setup weeks out of the decision and reports them apart', () => {
+    const d = inWeek(10, '2026-11-10', () => 'fixed', '2026-11-25T12:00:00Z');
+    const m = compute(d, DEFAULTS);
+    expect(criterion(d, /Important fix rate/).status).toBe('early');
+    expect(m.decision.important.n).toBe(0);
+    expect(m.setupWeeks).toMatchObject({ weeks: 2, reviewed: 10, findings: 10 });
+    expect(m.setupWeeks.important.k).toBe(10);
+  });
+
+  it('judges findings posted from the first measurement week on', () => {
+    const d = inWeek(10, '2026-11-24', (i) => (i < 4 ? 'fixed' : 'open'), '2026-12-01T12:00:00Z');
+    expect(criterion(d, /Important fix rate/).status).toBe('bad');
+    expect(compute(d, DEFAULTS).setupWeeks.findings).toBe(0);
+  });
+
+  it('starts the measurement on the Monday of the configured week', () => {
+    expect(new Date(compute(data([]), DEFAULTS).measureMs).toISOString().slice(0, 10)).toBe('2026-11-23');
+    expect(new Date(compute(data([]), FROM_WEEK_1).measureMs).toISOString().slice(0, 10)).toBe(START);
+  });
+
+  it('waits with the missed-by-CI count until the last week before calling it short', () => {
+    expect(criterion(inWeek(1, '2026-11-24', () => 'fixed', '2026-12-01T12:00:00Z'), /automated checks/).status).toBe('early');
+    expect(criterion(inWeek(1, '2026-11-24', () => 'fixed', '2026-12-17T12:00:00Z'), /automated checks/).status).toBe('bad');
+  });
+});
+
+describe('escaped', () => {
+  it('lists pull requests labelled escaped since the start, newest first', () => {
+    const d = data([
+      pr(1, '2026-11-01T08:00:00Z', '2026-11-01T09:00:00Z', { escaped: true }),
+      pr(2, '2026-11-12T08:00:00Z', '2026-11-12T09:00:00Z', { escaped: true }),
+      pr(3, '2026-11-13T08:00:00Z', null, { escaped: true }),
+      pr(4, '2026-11-13T08:00:00Z', null),
+    ]);
+    expect(compute(d, DEFAULTS).escaped.map((e) => e.n)).toEqual([3, 2]);
   });
 });
 
@@ -154,6 +202,11 @@ describe('sample data', () => {
     expect(m.weeks.filter((w) => w.phase === 'base')).toHaveLength(3);
     expect(m.weeks.filter((w) => w.phase === 'review')).toHaveLength(6);
     expect(m.week).toBe(6);
+  });
+
+  it('has escaped pull requests and a change log to show', () => {
+    expect(m.escaped.length).toBeGreaterThan(0);
+    expect(d.changes?.map((c) => c.source)).toEqual(['manual', 'auto', 'auto']);
   });
 
   it('has enough data for every criterion to be judged', () => {

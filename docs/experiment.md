@@ -73,7 +73,7 @@ The approved proposal says to stop if more than half the findings are dismissed 
 
 ## The change log
 
-`inputs/digdir/genki/changes.json` in this repository, one entry for each change, added in the same week:
+Changes made by a merged pull request in genki are found automatically: `REVIEW.md`, `AGENTS.md`, `CLAUDE.md` and `.github/review-security.md` as kind `rule`, the review workflows and scripts as `workflow`, and the review skill as `procedure`. Everything else, such as the model deployment, a repository variable or the graders, goes in `inputs/digdir/genki/changes.json` in this repository, one entry for each change, added in the same week:
 
 ```json
 [
@@ -98,7 +98,7 @@ From week 3, two graders each grade the same sample, without knowing which group
 - **Agreement.** Cohen's kappa between the two graders. Where they disagree, they agree on one grade together, and that grade counts.
 - **Follow-up checks.** For a sample of findings the cheaper model marked fixed after a push, whether they were fixed.
 
-The results go in `inputs/digdir/genki/grading.json`, in the shape of `Grading` in [`src/lib/types.ts`](../src/lib/types.ts). The graders are named in the change log when they start.
+How to draw the sample, grade and merge the grades is in [grading.md](grading.md). The results go in `inputs/digdir/genki/grading.json`. The graders are named in the change log when they start.
 
 ## Pulse survey
 

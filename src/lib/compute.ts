@@ -8,6 +8,7 @@ export const DEFAULTS: ExperimentConfig = {
   budgetNok: 7500,
   usdNok: 10.9,
   minCell: 5,
+  measureFromWeek: 3,
   humanBand: [0.44, 0.6],
   importantMin: 0.5,
   dismissedMax: 0.5,
@@ -94,10 +95,15 @@ export function compute(D: Data, C: ExperimentConfig) {
   const reviewedSet = new Set(reviews.map((x) => x.pr_number));
   const treated = since.filter((p) => reviewedSet.has(p.n) && p.arm !== 'shadow');
   const shadow = since.filter((p) => p.arm === 'shadow');
+  const measureMs = startMs + (Math.max(1, C.measureFromWeek) - 1) * WEEK;
+  const inMeasure = (iso: string) => ms(iso) >= measureMs;
 
   const F: FlatFinding[] = D.prs.flatMap((p) => p.findings.map((f) => ({ ...f, pr: p.n, prTitle: p.title, merged: !!p.merged, arm: p.arm, kind: p.author_kind })));
   const posted = F.filter((f) => f.arm !== 'shadow');
   const onMerged = posted.filter((f) => f.merged);
+  const postedM = posted.filter((f) => inMeasure(f.posted));
+  const onMergedM = onMerged.filter((f) => inMeasure(f.posted));
+  const sinceM = since.filter((p) => inMeasure(p.merged!));
   const fixedRate = (xs: FlatFinding[]) => r(xs.filter((f) => f.outcome === 'fixed').length, xs.length);
   const bySev = SEVS.map((s) => ({ key: s as string, ...fixedRate(onMerged.filter((f) => f.severity === s)) }));
   const important = bySev[0];
@@ -200,21 +206,53 @@ export function compute(D: Data, C: ExperimentConfig) {
   const reworkBase = reworkRate(base.filter(settled));
   const reworkSince = reworkRate(since.filter(settled));
 
+  const isImportant = (f: FlatFinding) => f.severity === 'Important';
+  const treatedMT = ttm(sinceM.filter((p) => reviewedSet.has(p.n) && p.arm !== 'shadow'));
+  const shadowMT = ttm(sinceM.filter((p) => p.arm === 'shadow'));
+  const vsShadowM = shadowMT.n >= 10;
+  const compareM = vsShadowM ? shadowMT : baseT;
+  const decision = {
+    from: measureMs,
+    important: fixedRate(onMergedM.filter(isImportant)),
+    dismissed: r(postedM.filter((f) => f.outcome === 'dismissed').length, postedM.length),
+    ciMissed: onMergedM.filter((f) => isImportant(f) && f.outcome === 'fixed').length,
+    treatedT: treatedMT,
+    shadowT: shadowMT,
+    vsShadow: vsShadowM,
+    mergeChange: compareM.med && treatedMT.med != null && treatedMT.n >= C.minCell ? treatedMT.med / compareM.med - 1 : null,
+    rework: reworkRate(sinceM.filter(settled)),
+  };
+  const inSetup = (iso: string) => ms(iso) >= startMs && ms(iso) < measureMs;
+  const setupPosted = posted.filter((f) => inSetup(f.posted));
+  const setupWeeks = {
+    weeks: Math.max(0, C.measureFromWeek - 1),
+    reviewed: new Set(reviews.filter((x) => inSetup(x.started_at) && x.arm !== 'shadow').map((x) => x.pr_number)).size,
+    findings: setupPosted.length,
+    important: fixedRate(setupPosted.filter((f) => f.merged && isImportant(f))),
+    dismissed: r(setupPosted.filter((f) => f.outcome === 'dismissed').length, setupPosted.length),
+    cost: runCost(D.runs.filter((x) => inSetup(x.started_at))),
+  };
+  const escaped = D.prs
+    .filter((p) => p.escaped && ms(p.created) >= startMs)
+    .map((p) => ({ n: p.n, title: p.title, merged: p.merged }))
+    .sort((a, b) => b.n - a.n);
+  const { important: impM, dismissed: disM, ciMissed: ciM, rework: rwM } = decision;
+
   const criteria: Criterion[] = [
     {
       name: `Important fix rate at least ${pct(C.importantMin)}`,
-      value: important.n ? `${pct(important.v)} of ${fmt(important.n)}` : 'None yet',
-      status: important.n < 10 ? 'early' : important.v! >= C.importantMin ? 'ok' : 'bad',
+      value: impM.n ? `${pct(impM.v)} of ${fmt(impM.n)}` : 'None yet',
+      status: impM.n < 10 ? 'early' : impM.v! >= C.importantMin ? 'ok' : 'bad',
     },
     {
       name: 'Catches bugs the automated checks missed',
-      value: `${fmt(ciMissed)} Important confirmed fixed`,
-      status: week < 3 && ciMissed < C.ciMissedMin ? 'early' : ciMissed >= C.ciMissedMin ? 'ok' : 'bad',
+      value: `${fmt(ciM)} Important confirmed fixed`,
+      status: ciM >= C.ciMissedMin ? 'ok' : week < C.weeks || now < measureMs ? 'early' : 'bad',
     },
     {
       name: `Under ${pct(C.dismissedMax)} of findings dismissed`,
-      value: dismissed.n ? `${pct(dismissed.v)} of ${fmt(dismissed.n)}` : 'No findings yet',
-      status: dismissed.n < 20 ? 'early' : dismissed.v! < C.dismissedMax ? 'ok' : 'bad',
+      value: disM.n ? `${pct(disM.v)} of ${fmt(disM.n)}` : 'No findings yet',
+      status: disM.n < 20 ? 'early' : disM.v! < C.dismissedMax ? 'ok' : 'bad',
     },
     {
       name: `Precision at least ${pct(C.precisionMin)} in grading`,
@@ -223,13 +261,13 @@ export function compute(D: Data, C: ExperimentConfig) {
     },
     {
       name: `Time to merge up by at most ${pct(C.mergeMaxIncrease)}`,
-      value: mergeChange == null ? '–' : `${signed(mergeChange)} vs ${vsShadow ? 'shadow group' : 'baseline'}`,
-      status: treatedT.n < 20 || mergeChange == null ? 'early' : mergeChange <= C.mergeMaxIncrease ? 'ok' : 'bad',
+      value: decision.mergeChange == null ? '–' : `${signed(decision.mergeChange)} vs ${decision.vsShadow ? 'shadow group' : 'baseline'}`,
+      status: treatedMT.n < 20 || decision.mergeChange == null ? 'early' : decision.mergeChange <= C.mergeMaxIncrease ? 'ok' : 'bad',
     },
     {
       name: 'Rework no higher than before',
-      value: reworkSince.n ? `${pct(reworkSince.v)} vs ${pct(reworkBase.v)}` : 'Waits 14 days after merge',
-      status: reworkSince.n < 20 ? 'early' : reworkSince.v! - (reworkBase.v ?? 0) <= C.reworkMaxIncrease ? 'ok' : 'bad',
+      value: rwM.n ? `${pct(rwM.v)} vs ${pct(reworkBase.v)}` : 'Waits 14 days after merge',
+      status: rwM.n < 20 ? 'early' : rwM.v! - (reworkBase.v ?? 0) <= C.reworkMaxIncrease ? 'ok' : 'bad',
     },
     {
       name: `Within NOK ${fmt(C.budgetNok)} a month`,
@@ -433,6 +471,7 @@ export function compute(D: Data, C: ExperimentConfig) {
     shadowN, setup, hist, areas, sensitiveRows, costPerPr, reviewCost, followCost, shadowCost, costDays, daysInMonth,
     monthCumulative, runsNewest, failedRuns, coverage, firstReview, reviewTime, failRate, totalCost, costPerFix, ignored,
     unresolvedImportant, withSuggestion, withoutSuggestion, per100Lines, cacheHit, reviewAgain, promptVersions,
+    measureMs, decision, setupWeeks, escaped,
   };
 }
 

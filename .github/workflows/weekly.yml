@@ -1,0 +1,48 @@
+name: weekly
+
+on:
+  schedule:
+    - cron: '5 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  issues: write
+
+concurrency:
+  group: weekly
+  cancel-in-progress: false
+
+jobs:
+  issue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906 # v3.1.0
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data/cache
+          key: review-runs-${{ github.run_id }}
+          restore-keys: review-runs-
+      - run: npm ci
+      - run: npm run collect
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Open this week's issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh label create weekly --repo "$GITHUB_REPOSITORY" --color 0e8a16 --description "Weekly experiment routine" --force
+          npm run weekly

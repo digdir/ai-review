@@ -1,9 +1,10 @@
 <script lang="ts">
   import type { Metrics } from '../lib/compute';
-  import { day, fmt } from '../lib/format';
+  import { day, fmt, nok, pct } from '../lib/format';
   import { SETUP, SETUP_VERDICT, STATUS, VERDICT } from '../lib/labels';
   import { DAY } from '../lib/stats';
   import type { Data, ExperimentConfig } from '../lib/types';
+  import Stat from '../lib/ui/Stat.svelte';
   import StatusBoard from '../lib/ui/StatusBoard.svelte';
 
   let { data, m, config }: { data: Data; m: Metrics; config: ExperimentConfig } = $props();
@@ -12,10 +13,12 @@
     ['Repository', data.config.repo],
     ['Start', day(data.config.start + 'T12:00:00Z')],
     ['Baseline', `${day(data.config.baselineFrom + 'T12:00:00Z')} to ${day(m.startMs - DAY)}`],
+    ['Measured from', `${day(m.measureMs)}, week ${config.measureFromWeek}`],
     ['Decision', day(m.decisionMs)],
     ['Model', 'Claude Opus 5.5 through Azure AI Foundry, follow-up on Sonnet 5.5'],
     ['Budget', `NOK ${fmt(config.budgetNok)} a month`],
   ]);
+  const changes = $derived([...(data.changes ?? [])].sort((a, b) => b.date.localeCompare(a.date)));
   const catalogue = [
     ['Fix rate', 'Quality. Findings the follow-up confirmed fixed, divided by all findings on merged pull requests. By severity, finder, author and suggestion.'],
     ['Human fix rate', 'Quality. The same measure for human review comments, or published studies when the repository has too few.'],
@@ -45,12 +48,53 @@
 
 <div class="grid grid-2">
   <div class="ds-card panel" data-color="neutral">
-    <div class="panel-head"><span>Go / no-go</span><span class="meta">{m.met}/{m.criteria.length} met · decision {day(m.decisionMs)}</span></div>
+    <div class="panel-head"><span>Go / no-go</span><span class="meta">{m.met}/{m.criteria.length} met · from week {config.measureFromWeek} · decision {day(m.decisionMs)}</span></div>
     <StatusBoard items={m.criteria} title={STATUS} verdict={VERDICT} />
   </div>
   <div class="ds-card panel" data-color="neutral">
     <div class="panel-head"><span>Setup</span><span class="meta">what must be in place</span></div>
     <StatusBoard items={m.setup} title={SETUP} verdict={SETUP_VERDICT} />
+  </div>
+</div>
+{#if m.setupWeeks.weeks > 0}
+  <p class="hint">
+    Weeks 1 to {m.setupWeeks.weeks} are for setting up and tightening the rules, and are not part of the decision. In them: {fmt(m.setupWeeks.reviewed)} pull
+    requests reviewed, {fmt(m.setupWeeks.findings)} findings posted, {m.setupWeeks.important.n ? `${pct(m.setupWeeks.important.v)} of ${fmt(m.setupWeeks.important.n)}` : 'no'}
+    Important findings on merged pull requests fixed, {pct(m.setupWeeks.dismissed.v)} dismissed, {nok(m.setupWeeks.cost)} spent.
+  </p>
+{/if}
+<div class="grid grid-2">
+  <div class="ds-card" data-color="neutral">
+    <Stat
+      label="Problems the review missed"
+      value={fmt(m.escaped.length)}
+      help="Pull requests labelled escaped: they fix a bug in a change the review had a chance to see. Counted from the start of the experiment."
+    >
+      {m.escaped.length ? 'labelled escaped since the start' : 'none labelled escaped yet'}
+    </Stat>
+    {#if m.escaped.length}
+      <ul class="ds-list">
+        {#each m.escaped as e (e.n)}
+          <li><a class="ds-link" href="https://github.com/{data.config.repo}/pull/{e.n}">#{e.n}</a> {e.title}</li>
+        {/each}
+      </ul>
+    {/if}
+  </div>
+  <div class="ds-card" data-color="neutral">
+    <h2 class="ds-heading" data-size="xs">Change log</h2>
+    {#if changes.length}
+      <dl class="defs">
+        {#each changes as c (c.date + c.kind + (c.ref ?? c.note))}
+          <dt>{day(c.date + 'T12:00:00Z')} · {c.kind}</dt>
+          <dd>
+            {#if c.ref}<a class="ds-link" href="https://github.com/{c.ref.replace('#', '/pull/')}">{c.ref.replace(/^.*#/, '#')}</a>{/if}
+            {c.note}{c.source === 'auto' ? ' (found in the pull request)' : ''}
+          </dd>
+        {/each}
+      </dl>
+    {:else}
+      <p class="hint">No changes logged yet.</p>
+    {/if}
   </div>
 </div>
 <div class="grid grid-2">
@@ -74,7 +118,7 @@
       <li><strong>Baseline:</strong> weekly numbers from three weeks before the start.</li>
       <li><strong>Novelty effect:</strong> weeks 1 and 2 against weeks 5 and 6.</li>
       <li><strong>Author kind:</strong> agent, human with AI or unknown, never per person.</li>
-      <li><strong>Grading:</strong> about 35 findings a week, two people on 20% of them.</li>
+      <li><strong>Grading:</strong> from week {config.measureFromWeek}, up to 15 findings a week, every Important included, graded by two people who do not see the group or the outcome.</li>
       <li><strong>Pulse:</strong> two questions in weeks 2 and 6.</li>
     </ul>
     <dl class="defs" style="margin-top:var(--ds-size-4)">

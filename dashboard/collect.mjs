@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { autoChanges, changeProblems, mergeChanges } from './changes.mjs';
 import { loadRepos } from './repos.mjs';
 import { fromSnapshot } from './snapshot.mjs';
 
@@ -30,9 +31,10 @@ function risk(body) {
 }
 
 const PR_QUERY = `query($q:String!,$after:String){search(query:$q,type:ISSUE,first:25,after:$after){pageInfo{hasNextPage endCursor}nodes{...on PullRequest{
-  number title body state isDraft createdAt mergedAt additions deletions author{login __typename}
+  number title body state isDraft createdAt mergedAt additions deletions headRefOid author{login __typename}
+  labels(first:20){nodes{name}}
   timelineItems(itemTypes:[ADDED_TO_MERGE_QUEUE_EVENT],last:1){nodes{...on AddedToMergeQueueEvent{createdAt}}}
-  files(first:100){nodes{path}}
+  files(first:100){totalCount nodes{path}}
   reviews(first:50){nodes{author{login __typename} state}}
   comments(first:50){nodes{author{login __typename}}}
   reviewThreads(first:100){nodes{isResolved isOutdated path line resolvedBy{login __typename}
@@ -48,6 +50,11 @@ function pullRequests() {
     out.push(...page.nodes.filter((n) => n.number));
     after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
   } while (after);
+  for (const p of out.filter((p) => p.files.totalCount > p.files.nodes.length))
+    p.files.nodes = sh('gh', ['api', `repos/${CONFIG.repo}/pulls/${Number(p.number)}/files?per_page=100`, '--paginate', '--jq', '.[].filename'])
+      .split('\n')
+      .filter(Boolean)
+      .map((path) => ({ path }));
   return out;
 }
 
@@ -73,6 +80,7 @@ function finding(t) {
     severity: sev,
     title: TITLE.exec(first.body)?.[1]?.split('\n')[0]?.trim() ?? '',
     path: t.path,
+    line: t.line ?? null,
     outcome,
     replies: human.length,
     suggestion: first.body.includes('```suggestion'),
@@ -224,6 +232,8 @@ function collect() {
       risk: risk(p.body),
       queued: p.timelineItems.nodes[0]?.createdAt ?? null,
       human_threads: threads.map((t) => humanThread(t, login)).filter(Boolean),
+      escaped: p.labels.nodes.some((l) => l.name === 'escaped'),
+      head: p.headRefOid ?? null,
     };
   });
 
@@ -232,6 +242,9 @@ function collect() {
     return existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
   };
   const snap = snapshot();
+  const manual = optional('changes.json');
+  const wrong = manual ? changeProblems(manual) : [];
+  if (wrong.length) throw new Error(`inputs/${CONFIG.repo}/changes.json: ${wrong.join('; ')}`);
 
   const data = {
     schema: 'digdir.ai-review.dashboard/v1',
@@ -245,7 +258,7 @@ function collect() {
     azure: azureCost(),
     grading: optional('grading.json'),
     pulse: optional('pulse.json'),
-    changes: optional('changes.json'),
+    changes: mergeChanges(autoChanges(prs, { repo: CONFIG.repo, start: CONFIG.start, paths: CONFIG.changePaths }), manual),
   };
   mkdirSync(join(OUT, 'repos', CONFIG.repo.split('/')[0]), { recursive: true });
   writeFileSync(join(OUT, 'repos', `${CONFIG.repo}.json`), JSON.stringify(data));

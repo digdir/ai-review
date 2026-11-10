@@ -7,6 +7,9 @@
   },
   "scripts": {
     "collect": "node dashboard/collect.mjs",
+    "grading-sample": "node dashboard/grading-sample.mjs",
+    "grading-merge": "node dashboard/grading-merge.mjs",
+    "weekly": "node dashboard/weekly-issues.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",

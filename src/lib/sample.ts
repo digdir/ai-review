@@ -54,6 +54,7 @@ export function sample(): Data {
         author_kind: live ? kind : null,
         findings: [],
         human_threads: [],
+        escaped: live && n % 47 === 0,
       };
       if (live && !p.bot) {
         const cost = 1.2 + rnd() * 2.2;
@@ -121,6 +122,11 @@ export function sample(): Data {
     ci,
     azure,
     grading: { grades, followup, agreement: 0.81 },
+    changes: [
+      { date: '2026-11-09', kind: 'setup', note: 'Start of the experiment.', source: 'manual' },
+      { date: '2026-11-17', kind: 'rule', ref: 'digdir/genki#431', note: 'Tighter rule for tenant checks', source: 'auto' },
+      { date: '2026-12-02', kind: 'workflow', ref: 'digdir/genki#460', note: 'Retry a failed review once', source: 'auto' },
+    ],
     pulse: [
       { week: 2, n: 9, useful: 3.6, noise: 3.4 },
       { week: 6, n: 8, useful: 3.8, noise: 3.9 },
