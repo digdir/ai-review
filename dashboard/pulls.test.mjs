@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authorHash, finding, fromRecord, recordedFindings } from './pulls.mjs';
+import { authorHash, finding, fromRecord, recordedFindings, touchesSensitive } from './pulls.mjs';
 
 const bot = { login: 'github-actions[bot]', __typename: 'Bot' };
 const person = { login: 'Kari-H', __typename: 'User' };
@@ -53,5 +53,14 @@ describe('run records', () => {
     const f = { severity: 'preexisting', category: 'security', title: 'Old leak', path: 'a.ts', line_start: 1, line_end: 2, posted: false };
     const out = recordedFindings([shadow('2026-11-24T10:00:00Z', [f]), shadow('2026-11-24T09:00:00Z', [f]), record]);
     expect(out.get(7)).toEqual([{ posted: '2026-11-24T09:00:00Z', severity: 'Pre-existing', category: 'security', title: 'Old leak', path: 'a.ts' }]);
+  });
+
+  it('marks a pull request sensitive when it touches auth, tenancy, the gate, migrations, infra or workflows', () => {
+    expect(touchesSensitive(['apps/api/src/auth/login.ts'])).toBe(true);
+    expect(touchesSensitive(['packages/identity/src/api-keys.ts'])).toBe(true);
+    expect(touchesSensitive(['.github/workflows/review.yml'])).toBe(true);
+    expect(touchesSensitive(['apps/api/migrations/0042.sql'])).toBe(true);
+    expect(touchesSensitive(['apps/portal/src/screens/Overview.tsx', 'docs/README.md'])).toBe(false);
+    expect(touchesSensitive([])).toBe(false);
   });
 });

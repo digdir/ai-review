@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto';
 
 export const isBot = (a) => !a || a.__typename === 'Bot' || /\[bot\]$/.test(a.login) || a.login === 'github-actions';
 export const REVIEW_BOT = (a) => a?.login === 'github-actions' || a?.login === 'github-actions[bot]';
+const SENSITIVE = /^(packages\/identity|packages\/guardrails|infra\/|\.github\/)|Dockerfile|\/migrations?\/|\/(auth|tenan|gate|principal|rights|audit|secrets?)[^/]*($|\/)/i;
+export const touchesSensitive = (paths) => paths.some((path) => SENSITIVE.test(path));
 const SEVERITY = /^\*\*(Important|Nit|Pre-existing)\*\*/;
 const DISMISSED = /\b(not fixing|won't fix|wontfix|false positive|this is wrong|not a problem)\b/i;
 const FIXED_REPLY = /^Fixed in `?([0-9a-f]{7,40})/;
