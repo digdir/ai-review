@@ -1,15 +1,13 @@
 <script lang="ts">
-  import Explain from './Explain.svelte';
-
   let {
     label,
     value,
     unit,
     sub,
     tone = 'plain',
-    means,
-    source,
-    doc,
+    open = false,
+    panelId,
+    ontoggle,
     mono = false,
   }: {
     label: string;
@@ -17,16 +15,16 @@
     unit?: string;
     sub: string;
     tone?: 'on' | 'watch' | 'off' | 'plain';
-    means: string;
-    source: string;
-    doc: [string, string];
+    open?: boolean;
+    panelId: string;
+    ontoggle: () => void;
     mono?: boolean;
   } = $props();
 </script>
 
-<div class="tile {tone}">
+<div class={['tile', tone, open && 'open']}>
   <span class="label">{label}</span>
-  <Explain name={label} {means} {source} {doc} />
+  <button type="button" class="why" aria-expanded={open} aria-controls={panelId} aria-label="Explain {label}" onclick={ontoggle}>?</button>
   <span class={['value', mono && 'mono stamp-value']}>{value}{#if unit}<small>{unit}</small>{/if}</span>
   <span class="sub">{sub}</span>
 </div>
