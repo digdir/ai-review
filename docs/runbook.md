@@ -35,7 +35,7 @@ The budget `budget-genki-review` alerts at 80 and 100 percent of NOK 7,500 a mon
 
 ## When the dashboard is stale or down
 
-- **Numbers are old.** The dashboard rebuilds every hour on weekdays, 05 to 17 UTC. Run the `dashboard` workflow by hand to rebuild now.
+- **Numbers are old.** The dashboard rebuilds every twenty minutes on weekdays, 05 to 17 UTC, and every hour otherwise. Run the `dashboard` workflow by hand to rebuild now.
 - **Code scanning shows "–".** The repository's `review snapshot` workflow has not run, or its artifact is older than 7 days. Run it by hand in that repository.
 - **Sign-in fails.** Check that the app registration has admin consent and that its secret has not expired. The secret runs out on **2027-11-09**; renew it before then and update `AAD_CLIENT_SECRET` on the Static Web App.
 - **Deploy fails.** Usually the workflow identity lost its role on the Static Web App.
@@ -69,7 +69,7 @@ All in the lab's Azure subscription and its tenant, resource group `rg-genki-rev
 | Setting                                 | Value                                                                                                     |
 | --------------------------------------- | --------------------------------------------------------------------------------------------------------- |
 | Environment `production`                | Variables `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`, `SWA_NAME`, `SWA_RESOURCE_GROUP` |
-| Workflows `dashboard.yml`, `weekly.yml` | The hourly rebuild, and the Monday issue                                                                  |
+| Workflows `dashboard.yml`, `weekly.yml` | The scheduled rebuild, and the Monday issue                                                               |
 | `repos/`, `inputs/`                     | Settings per repository, and the hand-entered experiment data                                             |
 
 How each piece was set up, if it has to be done again, is in the [README](../README.md#setup).
