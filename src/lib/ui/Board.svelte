@@ -80,7 +80,7 @@
     unit="pull requests"
     sub={b.queue.queued ? `${fmt(b.queue.queued)} in the merge queue` : 'open, reviewed, not merged'}
     means="Open pull requests by people that have had their review and are waiting on CI, answers or the merge queue."
-    source="Pull requests from GitHub, joined with the run records."
+    source="Pull requests from GitHub, joined with the run records." doc={['working-with-the-review', 'what-happens-to-your-pull-request']}
   />
   <Tile
     label="Collected"

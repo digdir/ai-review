@@ -29,7 +29,7 @@
         <span class="val"><span class={{ muted: c.status === 'early' }}>{c.text}</span><small>{c.sub}</small></span>
         <Meter fill={m.phase === 'setup' ? null : c.fill} tick={c.tick} tickLabel={c.tickLabel} status={c.status} label="{c.text} against {def.rule.toLowerCase()}" />
         <span class="status-cell"><Pill status={c.status} /></span>
-        <Explain name={def.name} means={def.means} source={def.source} doc={def.doc} docLabel="Measures and thresholds in the protocol" />
+        <Explain name={def.name} means={def.means} source={def.source} doc={def.doc} />
       </li>
     {/each}
   </ul>

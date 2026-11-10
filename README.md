@@ -65,8 +65,8 @@ dashboard/                    collector, change log, grading and weekly issue (p
 src/                          the dashboard (Svelte 5 and TypeScript)
   lib/compute.ts              every metric and criterion
   screens/                    Overview, Repository, Findings and Operations
-  views/                      Repositories, Start here and one repository
-docs/                         the documentation above
+  views/                      Repositories, Start here, Docs and one repository
+docs/                         the documentation above, also rendered in the dashboard under Docs
 .github/workflows/            dashboard.yml (every 20 min by day, hourly otherwise), weekly.yml (Mondays)
 ```
 

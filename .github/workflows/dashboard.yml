@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['dashboard/**', 'src/**', 'public/**', 'index.html', 'package.json', 'package-lock.json', 'vite.config.ts', 'svelte.config.js', 'repos/**', 'inputs/**', '.github/workflows/dashboard.yml']
+    paths: ['dashboard/**', 'docs/**', 'src/**', 'public/**', 'index.html', 'package.json', 'package-lock.json', 'vite.config.ts', 'svelte.config.js', 'repos/**', 'inputs/**', '.github/workflows/dashboard.yml']
 
 permissions:
   contents: read

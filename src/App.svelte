@@ -1,6 +1,7 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { hashLogin } from './lib/author';
+  import { DOC_IDS } from './lib/docs';
   import { makeConfig, timing } from './lib/compute';
   import { fleet, type Index } from './lib/fleet';
   import { stamp, weekday } from './lib/format';
@@ -8,6 +9,7 @@
   import { parseRoute } from './lib/route';
   import { SAMPLE_STATES, sample, type SampleState } from './lib/sample';
   import type { Data } from './lib/types';
+  import Docs from './views/Docs.svelte';
   import Fleet from './views/Fleet.svelte';
   import Repo from './views/Repo.svelte';
   import Start from './views/Start.svelte';
@@ -39,7 +41,7 @@
   let author = $state<string | null>(null);
   let startDismissed = $state(store.get('start-dismissed') === '1');
 
-  const route = $derived(parseRoute(hash, names));
+  const route = $derived(parseRoute(hash, names, DOC_IDS));
   const fake = $derived(sampleState === 'off' ? null : sample(sampleState));
   const shown = $derived(repos.map((d) => (fake ? { ...fake, config: { ...fake.config, repo: d.config.repo } } : d)));
   const current = $derived(route.repo ? shown.find((d) => d.config.repo === route.repo) : undefined);
@@ -76,6 +78,7 @@
     const anchor = route.anchor;
     void route.screen;
     void route.page;
+    void route.doc;
     tick().then(() => {
       const el = anchor && document.getElementById(anchor);
       if (el) el.scrollIntoView({ block: 'start' });
@@ -128,13 +131,14 @@
         {/each}
       {/if}
       <a href="#/" aria-current={route.page === 'repositories' ? 'page' : undefined}>Repositories</a>
+      <a href="#/docs" aria-current={route.page === 'docs' ? 'page' : undefined}>Docs</a>
       <a href="#/start" class="start" aria-current={route.page === 'start' ? 'page' : undefined}>Start here</a>
     </nav>
     <div class="tools">
-      <label class="seg-label" for="sample">Sample data</label>
+      <label class="sr-only" for="sample">Sample data</label>
       <select id="sample" class="sample" bind:value={sampleState} onchange={() => store.set('sample', sampleState)}>
-        <option value="off">Off</option>
-        {#each SAMPLE_STATES as [id, label] (id)}<option value={id}>{label}</option>{/each}
+        <option value="off">Real data</option>
+        {#each SAMPLE_STATES as [id, label] (id)}<option value={id}>Sample: {label}</option>{/each}
       </select>
       {#if fresh}
         <span class="stamp" title={failed ? 'The last collection failed for at least one repository' : 'When the data was collected'}
@@ -155,6 +159,8 @@
     {/if}
     {#if route.page === 'start'}
       <Start {dates} />
+    {:else if route.page === 'docs' && route.doc}
+      <Docs page={route.doc} anchor={route.anchor} />
     {:else if current && route.screen}
       {#key current.config.repo + sampleState}
         <Repo
