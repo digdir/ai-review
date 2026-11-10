@@ -32,6 +32,10 @@ describe('dashboard workflow', () => {
     ]);
     for (const c of crons) expect(c).not.toMatch(/'0 /);
   });
+
+  it('rebuilds when the docs change, since the dashboard renders them', () => {
+    expect(text).toMatch(/^\s+paths: \[.*'docs\/\*\*'.*\]$/m);
+  });
 });
 
 describe('weekly workflow', () => {

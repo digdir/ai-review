@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { parseRoute } from './route';
 
 const repos = ['digdir/genki', 'digdir/other'];
+const docs = ['experiment', 'runbook'];
 
 describe('routes', () => {
   it('opens the repositories screen by default', () => {
@@ -37,5 +38,18 @@ describe('routes', () => {
 
   it('falls back to the repositories screen for a repository that is not on the dashboard', () => {
     expect(parseRoute('#/digdir/secret/operations', repos).page).toBe('repositories');
+  });
+
+  it('opens a docs page at a heading', () => {
+    expect(parseRoute('#/docs/runbook#when-a-review-fails', repos, docs)).toMatchObject({ page: 'docs', doc: 'runbook', anchor: 'when-a-review-fails', canonical: '/docs/runbook#when-a-review-fails' });
+  });
+
+  it('opens the first docs page when none or an unknown one is named, without the anchor', () => {
+    expect(parseRoute('#/docs', repos, docs).canonical).toBe('/docs/experiment');
+    expect(parseRoute('#/docs/secrets#x', repos, docs).canonical).toBe('/docs/experiment');
+  });
+
+  it('drops an anchor that is not a plain heading id', () => {
+    expect(parseRoute('#/docs/runbook#<img>', repos, docs)).toMatchObject({ anchor: null, canonical: '/docs/runbook' });
   });
 });

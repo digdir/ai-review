@@ -1,10 +1,11 @@
 <script lang="ts">
+  import Columns from '../lib/charts/Columns.svelte';
+  import CostMonth from '../lib/charts/CostMonth.svelte';
   import type { Metrics } from '../lib/compute';
   import { docHref } from '../lib/docs';
   import { day, fmt, minutes, nok, pct, stamp, usd, weekday } from '../lib/format';
   import { JOB, QUESTION } from '../lib/labels';
   import type { Data, ExperimentConfig } from '../lib/types';
-  import Meter from '../lib/ui/Meter.svelte';
   import Pill from '../lib/ui/Pill.svelte';
   import Stat from '../lib/ui/Stat.svelte';
 
@@ -14,7 +15,6 @@
   const repo = $derived(data.config.repo);
   const since = $derived(weekday(m.T.startMs));
   const month = $derived(new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(m.now));
-  const scale = $derived(config.budgetNok * 1.25);
   const costNote = $derived(
     m.projected == null
       ? `The projection reads from day 5 of the month. Until then, ${nok(m.monthNok)} is what was spent so far.`
@@ -34,12 +34,12 @@
       means="Whether the last read of GitHub, the run records, the CodeQL snapshot and Azure cost worked. The dashboard rebuilds every 20 minutes on weekdays."
       source="data/index.json." doc={['runbook', 'when-the-dashboard-is-stale-or-down']} />
     <Stat label="Runs today" value={fmt(m.board.runsToday)} sub="{fmt(o.reviews)} reviews and {fmt(o.followUps)} follow-ups since {since}"
-      means="Runs started today, both jobs and both groups." source="Run records." />
+      means="Runs started today, both jobs and both groups." source="Run records." doc={['working-with-the-review', 'what-happens-to-your-pull-request']} />
     <Stat label="Failed runs" value="{fmt(o.failed.k)} of {fmt(o.failed.n)}" sub="{pct(o.failed.v ?? 0)} since {since}"
       means="Runs that did not complete. A failed review means the pull request got no review; a failed follow-up leaves threads open."
       source="Run records and the Actions log." doc={['runbook', 'when-a-review-fails']} />
     <Stat label="Review time" value={minutes(o.reviewTime.med)} sub="{minutes(o.reviewTime.min)} to {minutes(o.reviewTime.p90)} (slowest tenth)"
-      means="How long one review run takes, median. Anthropic reports about 20 minutes on its managed service for large pull requests." source="Run records." />
+      means="How long one review run takes, median. Anthropic reports about 20 minutes on its managed service for large pull requests." source="Run records." doc={['runbook', 'when-a-review-fails']} />
     <Stat label="Empty re-reviews" value={fmt(o.emptyRereviews)} sub="same head commit reviewed again"
       means="Full reviews of a head commit that an earlier review of the same pull request already covered, usually after a label change. Each costs a run and finds nothing new; a workflow guard can skip them."
       source="Run records: pull request and head commit." doc={['runbook', 'when-a-review-fails']} />
@@ -49,14 +49,17 @@
     <Stat label="Permission denials" value={o.denials ? fmt(o.denials.total) : 'Not recorded yet'}
       sub={o.denials ? `in ${fmt(o.denials.runs)} runs, at most ${fmt(o.denials.max)} in one` : 'the run records do not carry the count yet'}
       means="Times a run was refused a tool call. The review completes, but a denied read means a finding may rest on less than the whole file."
-      source="The field permission_denials in the run records, once the review workflow writes it." />
+      source="The field permission_denials in the run records, once the review workflow writes it." doc={['runbook', 'when-a-review-fails']} />
     <Stat label="Coverage" value="{fmt(o.coverage.k)} of {fmt(o.coverage.n)}" sub="pull requests by people that got a run"
       means="Pull requests opened since the start, not drafts, that got a review run in either group. A health check, not a goal."
-      source="Pull requests and run records." />
+      source="Pull requests and run records." doc={['experiment', 'design']} />
   </div>
   <div class="body topline">
     <h3>Runs per day, last two weeks</h3>
-    <table class="mini"><tbody>{#each o.runsPerDay as d (d.date)}<tr><td>{day(d.date + 'T12:00:00Z')}</td><td class="n">{fmt(d.runs)}{d.failed ? `, ${fmt(d.failed)} failed` : ''}</td></tr>{/each}</tbody></table>
+    <Columns aria="Runs per day over the last two weeks, failed runs marked" floor={4}
+      rows={o.runsPerDay.map((d) => ({ label: d.date.slice(8), value: d.runs, part: d.failed, tip: `${day(d.date + 'T12:00:00Z')}: ${fmt(d.runs)} runs, ${fmt(d.failed)} failed` }))}>
+      {#snippet legend()}<span><i class="key"></i>Runs per day (day of month)</span><span><i class="key bad"></i>Failed</span>{/snippet}
+    </Columns>
   </div>
 </section>
 
@@ -88,9 +91,7 @@
     <header><h2>{QUESTION.cost} {month}</h2><a class="meta" href={docHref('runbook', 'when-the-budget-alerts')}>When the budget alerts</a></header>
     <div class="body stack-gap">
       <div><span class="big num">{nok(m.monthNok)}</span> <span class="muted small">spent, {m.haveAzure ? 'from Azure Cost Management' : `from the run records in USD at ${fmt(config.usdNok, 2)}`}</span></div>
-      <Meter tall fill={(m.projected ?? m.monthNok) / scale} tick={config.budgetNok / scale} tickLabel="budget {fmt(config.budgetNok)}"
-        status={m.projected == null ? undefined : m.projected <= config.budgetNok ? 'met' : 'notmet'}
-        label="{nok(m.monthNok)} spent, {m.projected == null ? 'no projection yet' : nok(m.projected) + ' projected'}, budget {nok(config.budgetNok)}" />
+      <CostMonth spent={m.monthNok} projected={m.projected} budget={config.budgetNok} />
       <p class="small muted">{costNote}</p>
       <div class="stats boxed">
         <Stat label="Per reviewed PR" value={nok(o.cost.perPr)} sub="runs {usd(o.cost.run.min)} to {usd(o.cost.run.max)}, median {usd(o.cost.run.med)}"
@@ -98,10 +99,10 @@
           source="Run records in USD; Azure as the check." doc={['runbook', 'when-the-budget-alerts']} />
         <Stat label="Per confirmed fix" value={nok(o.cost.perFix)} sub={o.cost.perImportantFix ? `per Important fix ${nok(o.cost.perImportantFix)}` : 'no Important fix yet'}
           means="What one confirmed fix costs: all runs divided by findings answered fixed. Per Important fix is the number a budget owner understands."
-          source="Run records and review threads." />
+          source="Run records and review threads." doc={['runbook', 'when-the-budget-alerts']} />
         <Stat label="Cache hit share" value={pct(o.cost.cacheHit)} sub="of input tokens read from cache"
           means="Share of input tokens served from the prompt cache. The largest controllable cost lever; a drop after a prompt change means the cache was invalidated."
-          source="Token counts in the run records." />
+          source="Token counts in the run records." doc={['runbook', 'when-the-budget-alerts']} />
       </div>
     </div>
   </section>
@@ -125,7 +126,10 @@
       <h3>New CodeQL alerts per week</h3>
       <p class="xs muted chart-note">What the automated checks find on their own. Important findings fixed before merge are the missed-by-the-checks pool.</p>
       {#if o.codeqlKnown}
-        <table class="mini"><tbody>{#each o.codeql.slice(-10) as w (w.from)}<tr><td>Week of {day(w.from)}{w.base ? ', baseline' : ''}</td><td class="n">{fmt(w.n)}</td></tr>{/each}</tbody></table>
+        <Columns aria="New CodeQL alerts per week" height={120} slots={8} floor={4}
+          rows={o.codeql.slice(-10).map((w) => ({ label: day(w.from), value: w.n, tone: w.base ? 'base' : undefined, tip: `Week of ${day(w.from)}: ${fmt(w.n)} new alerts` }))}>
+          {#snippet legend()}<span><i class="key setup"></i>Baseline weeks</span><span><i class="key"></i>Since the review started</span>{/snippet}
+        </Columns>
       {:else}
         <p class="small muted">Unknown: the repository's review snapshot has not run in the last seven days.</p>
       {/if}

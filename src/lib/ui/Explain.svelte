@@ -1,13 +1,13 @@
 <script lang="ts">
-  import { docHref } from '../docs';
+  import { docHref, docLabel as headingLabel } from '../docs';
 
   let {
     name,
     means,
     source,
     doc,
-    docLabel = 'The definition in the docs',
-  }: { name: string; means: string; source: string; doc?: [string, string]; docLabel?: string } = $props();
+    docLabel,
+  }: { name: string; means: string; source: string; doc: [string, string]; docLabel?: string } = $props();
 
   let open = $state(false);
   const id = $props.id();
@@ -20,9 +20,7 @@
     <dd>{means}</dd>
     <dt>Where it comes from</dt>
     <dd>{source}</dd>
-    {#if doc}
-      <dt>Read more</dt>
-      <dd><a href={docHref(doc[0], doc[1])}>{docLabel}</a></dd>
-    {/if}
+    <dt>Read more</dt>
+    <dd><a href={docHref(doc[0], doc[1])}>{docLabel ?? headingLabel(doc[0], doc[1])}</a></dd>
   </dl>
 </div>

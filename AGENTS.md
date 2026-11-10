@@ -18,6 +18,8 @@
 - `src/lib/sample.ts`: deterministic sample data in the real shape, behind "Sample data".
 - `src/lib/format.ts`, `src/lib/stats.ts`, `src/lib/labels.ts`: formatting, statistics and labels.
 - `src/lib/ui/`: shared pieces: the status board, criteria, meters, explain panels, the phase strip.
+- `src/lib/charts/`: Columns (by week, runs per day, CodeQL), HBars (distributions) and CostMonth (the budget meter).
+- `src/lib/markdown.ts` and the `docs` plugin in `vite.config.ts`: `docs/*.md` rendered at build time into `#/docs/<page>#<heading>` (`src/views/Docs.svelte`).
 - `src/lib/compare.ts`: published figures for "How we compare", each with its source and caveat.
 - `src/views/Fleet.svelte`: the Repositories screen. `src/views/Start.svelte`: Start here. `src/views/Repo.svelte`: one repository's screens.
 - `src/screens/`: Overview, Repository, Findings and Operations. `src/App.svelte`: top bar and routing (`src/lib/route.ts`). `src/lib/fleet.ts`: one row per repository.
@@ -29,7 +31,7 @@
 - Use Svelte 5 runes (`$state`, `$derived`, `$props`, `$bindable`, snippets, `onclick`). Never Svelte 4 syntax (`export let`, `$:`, `on:click`, slots, stores for local state).
 - Run the `svelte-autofixer` tool from the Svelte MCP server (`.mcp.json`) on every component you write or change, until it reports no issues.
 - Everything in English: identifiers, file names and the text shown to users. Use the plain technical term (finding, fix rate, rework), never a translation of it.
-- Every number on screen says what it means: an explain panel (`means`, `source`, `doc`) on each `Stat` and tile, and a target or comparison in its subline.
+- Every number on screen says what it means: an explain panel (`means`, `source`, `doc`) on each `Stat` and tile, where `doc` names a heading in `docs/` (a test checks it exists), and a target or comparison in its subline.
 - Keep the privacy rule: cells with fewer than `minCell` pull requests are hidden. No logins in the data, only `author_hash`; never show a login on screen.
 - Use the protocol's words: Met, Not met, Too early; Keep, adjust, stop; reviewed and silent group. Never GO, NO-GO, HOLD or FAULT.
 - Pin dependencies to exact versions, published at least two weeks earlier.

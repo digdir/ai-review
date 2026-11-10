@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULTS, compute } from '../lib/compute';
 import { fleet } from '../lib/fleet';
 import { sample, type SampleState } from '../lib/sample';
+import Docs from '../views/Docs.svelte';
 import Fleet from '../views/Fleet.svelte';
 import Start from '../views/Start.svelte';
 import Findings from './Findings.svelte';
@@ -56,5 +57,30 @@ describe('phase on the overview', () => {
   it('shows the decision and the criteria as health after the experiment', () => {
     expect(body('after')).toMatch(/Decided 22 Dec: Keep/);
     expect(body('after')).toMatch(/Last four weeks, as ongoing health/);
+  });
+});
+
+describe('docs and charts', () => {
+  it('renders a docs page with its headings in the nav and links that stay in the app', () => {
+    const body = render(Docs, { props: { page: 'runbook', anchor: 'when-a-review-fails' } }).body;
+    expect(body).toContain('<h1>Runbook</h1>');
+    expect(body).toContain('href="#/docs/runbook#when-the-budget-alerts"');
+    expect(body).toContain('id="when-a-review-fails"');
+    expect(body).toContain('href="#/docs/experiment#the-change-log"');
+  });
+
+  it('opens the first page when the page is unknown', () => {
+    expect(render(Docs, { props: { page: 'nope', anchor: null } }).body).toContain('<h1>The experiment</h1>');
+  });
+
+  it('draws runs per day, findings by week and the budget meter on the measuring sample', () => {
+    const data = sample('measuring');
+    const m = compute(data, DEFAULTS);
+    const ops = render(Operations, { props: { data, m, config: DEFAULTS, collected: data.generatedAt, ok: true } }).body;
+    expect(ops).toContain('aria-label="Runs per day over the last two weeks, failed runs marked"');
+    expect(ops).toMatch(/aria-label="NOK [\d,]+ spent, NOK [\d,]+ projected, budget NOK 7,500"/);
+    const repo = render(Repository, { props: { data, m, author: null, username: '', onusername: () => {} } }).body;
+    expect(repo).toContain('aria-label="Findings per reviewed pull request by week"');
+    expect(repo).toContain('aria-label="Mean posted findings per pull request, by size"');
   });
 });

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import Columns from '../lib/charts/Columns.svelte';
+  import HBars from '../lib/charts/HBars.svelte';
   import type { Metrics } from '../lib/compute';
   import { docHref } from '../lib/docs';
   import { fmt, hours, minutes, pct, weekday } from '../lib/format';
@@ -122,7 +124,7 @@
       means="Findings the author answered as not fixed. All weeks." source="Review threads in GitHub." doc={['experiment', 'measures-and-thresholds']} />
     <Stat label="PRs with a finding" value={share(r.withFinding)} sub="{fmt(r.withFinding.k)} of {fmt(r.withFinding.n)} reviewed. Anthropic: 54%"
       means="Reviewed-group pull requests with at least one posted finding. A healthy reviewer says nothing on a clean pull request."
-      source="Run records and review threads." />
+      source="Run records and review threads." doc={['experiment', 'measures-and-thresholds']} />
     <Stat label="Author response" value={hours(r.response.med)} sub="slowest tenth {hours(r.response.p90)}, {fmt(r.response.n)} threads"
       means="Hours from a finding being posted to the author's first reply or the confirmed fix. Short means findings are actionable; long means they are debated or ignored."
       source="Thread timestamps in GitHub." doc={['working-with-the-review', 'answering-findings']} />
@@ -134,22 +136,26 @@
     <div>
       <h3>Findings per pull request, by size</h3>
       <p class="xs muted chart-note">Mean posted findings. Anthropic: 0.5 under 50 lines, 7.5 over 1,000.</p>
-      <table class="mini"><tbody>{#each r.bySize as b (b.label)}<tr><td>{b.label} ({fmt(b.n)})</td><td class="n">{fmt(b.mean, 1)}</td></tr>{/each}</tbody></table>
+      <HBars aria="Mean posted findings per pull request, by size" max={Math.max(8, ...r.bySize.map((b) => b.mean ?? 0))}
+        rows={r.bySize.map((b) => ({ label: `${b.label.replace(' lines', '')} (${fmt(b.n)})`, value: b.mean, text: fmt(b.mean, 1) }))} />
     </div>
     <div>
       <h3>Time to first review</h3>
       <p class="xs muted chart-note">Reviewed pull requests by minutes from open to the review posted. Median {minutes(m.firstReview.med)}, slowest tenth {minutes(m.firstReview.p90)}.</p>
-      <table class="mini"><tbody>{#each r.latency as b (b.label)}<tr><td>{b.label}</td><td class="n">{fmt(b.n)}</td></tr>{/each}</tbody></table>
+      <HBars aria="Reviewed pull requests by time to first review" rows={r.latency.map((b) => ({ label: b.label, value: b.n, text: fmt(b.n) }))} />
     </div>
     <div>
       <h3>Review rounds per pull request</h3>
       <p class="xs muted chart-note">Full reviews per reviewed pull request, counting review again.</p>
-      <table class="mini"><tbody>{#each r.rounds as b (b.label)}<tr><td>{b.label}</td><td class="n">{fmt(b.n)}</td></tr>{/each}</tbody></table>
+      <HBars aria="Reviewed pull requests by review rounds" rows={r.rounds.map((b) => ({ label: b.label, value: b.n, text: fmt(b.n) }))} />
     </div>
     <div>
       <h3>Findings per reviewed pull request, by week</h3>
       <p class="xs muted chart-note">Answers whether the rules are making the review quieter. Setup weeks are marked.</p>
-      <table class="mini"><tbody>{#each r.perWeek as w (w.week)}<tr><td>Week {w.week}{w.setup ? ', setup' : ''} ({fmt(w.prs)} PRs)</td><td class="n">{fmt(w.perPr, 1)}</td></tr>{/each}</tbody></table>
+      <Columns aria="Findings per reviewed pull request by week" slots={6} floor={4} format={(v) => fmt(v, v % 1 ? 1 : 0)}
+        rows={r.perWeek.map((w, i) => ({ label: `W${w.week}`, value: w.perPr ?? 0, tone: w.setup ? 'setup' : undefined, tip: `Week ${w.week}: ${fmt(w.perPr, 1)} per pull request, ${fmt(w.prs)} pull requests`, top: i === r.perWeek.length - 1 ? fmt(w.perPr, 1) : undefined }))}>
+        {#snippet legend()}<span><i class="key setup"></i>Setup weeks, not counted</span><span><i class="key"></i>Weeks 3 to 6</span>{/snippet}
+      </Columns>
     </div>
   </div>
 </section>

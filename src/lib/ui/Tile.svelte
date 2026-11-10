@@ -19,7 +19,7 @@
     tone?: 'on' | 'watch' | 'off' | 'plain';
     means: string;
     source: string;
-    doc?: [string, string];
+    doc: [string, string];
     mono?: boolean;
   } = $props();
 </script>

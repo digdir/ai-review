@@ -9,7 +9,7 @@
     means,
     source,
     doc,
-  }: { label: string; value: string; unit?: string; sub: string; means: string; source: string; doc?: [string, string] } = $props();
+  }: { label: string; value: string; unit?: string; sub: string; means: string; source: string; doc: [string, string] } = $props();
 </script>
 
 <div class="stat">
