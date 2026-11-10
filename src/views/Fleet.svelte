@@ -21,8 +21,8 @@
     <div class="repo-title"><h1>All repositories</h1></div>
     <div class="stats">
       <Stat label="Repositories" value={fmt(rows.length)} help="Repositories with a settings file in repos/.">using the review</Stat>
-      <Stat label="Collection" value={failed ? `${failed} failed` : 'OK'} status={failed ? 'bad' : 'ok'} help="Whether the last hourly collection worked for every repository.">
-        last hourly run
+      <Stat label="Collection" value={failed ? `${failed} failed` : 'OK'} status={failed ? 'bad' : 'ok'} help="Whether the last collection worked for every repository.">
+        last run
       </Stat>
       <Stat label="Reviewed, 7 days" value={fmt(reviewed)} help="Pull requests reviewed in the last seven days, across repositories.">pull requests</Stat>
       <Stat label="GO" value="{go}/{ok.length}" status={ok.length && go === ok.length ? 'ok' : 'wait'} help="Repositories that meet every go/no-go criterion.">

@@ -20,6 +20,20 @@ const runScripts = (text) => {
   return out.join('\n');
 };
 
+describe('dashboard workflow', () => {
+  const text = read('dashboard.yml');
+
+  it('rebuilds every twenty minutes on weekday daytime and every hour otherwise, never on the hour', () => {
+    const crons = block(text, 'on').filter((l) => l.startsWith('- cron:'));
+    expect(crons).toEqual([
+      "- cron: '7,27,47 5-17 * * 1-5'",
+      "- cron: '37 0-4,18-23 * * 1-5'",
+      "- cron: '37 * * * 0,6'",
+    ]);
+    for (const c of crons) expect(c).not.toMatch(/'0 /);
+  });
+});
+
 describe('weekly workflow', () => {
   const text = read('weekly.yml');
 

@@ -67,7 +67,7 @@ src/                          the dashboard (Svelte 5 and TypeScript)
   tabs/                       one component per tab
   views/                      the overview and one repository
 docs/                         the documentation above
-.github/workflows/            dashboard.yml (hourly), weekly.yml (Mondays)
+.github/workflows/            dashboard.yml (every 20 min by day, hourly otherwise), weekly.yml (Mondays)
 ```
 
 ## How it works
@@ -83,7 +83,7 @@ flowchart LR
   end
   R <--> F[Foundry: review model]
   subgraph here[ai-review]
-    C[collect, hourly] --> B[build] --> D[Dashboard]
+    C[collect, every 20 min] --> B[build] --> D[Dashboard]
     W[weekly.yml, Monday] --> I[Issue: week N]
     IN[inputs/: changes, grading, pulse] --> C
   end
@@ -95,7 +95,7 @@ flowchart LR
 
 1. **Review.** `review.yml` in the repository runs when a pull request opens. One in four is in the silent group: reviewed and recorded, but nothing is posted. After each push a cheaper model checks the open findings and resolves the fixed ones.
 2. **Record.** Every run uploads a run record. A daily `review-snapshot` workflow records the CodeQL alerts, which this repository cannot read with its own token.
-3. **Collect.** Every hour on weekdays, `dashboard/collect.mjs` reads pull requests, threads, run records, CI, the snapshot and Azure cost for each repository in `repos/`, plus the hand-entered inputs. Changes to the review setup are found in merged pull requests and joined with the change log. A repository that fails is marked on the overview and does not stop the others. It stores no logins.
+3. **Collect.** Every twenty minutes on weekdays and every hour otherwise, `dashboard/collect.mjs` reads pull requests, threads, run records, CI, the snapshot and Azure cost for each repository in `repos/`, plus the hand-entered inputs. Changes to the review setup are found in merged pull requests and joined with the change log. A repository that fails is marked on the overview and does not stop the others. It stores no logins.
 4. **Build.** Vite builds the dashboard with the data bundled in, and the workflow deploys the static site to Azure Static Web Apps. Only accounts in the lab's tenant can open it.
 5. **Routine.** Each Monday `weekly.yml` opens an issue with last week's numbers and the checklist from the [runbook](docs/runbook.md#every-monday).
 6. **Decide.** After week 6 the criteria in [the protocol](docs/experiment.md) decide: keep, adjust or stop.
@@ -141,12 +141,12 @@ No deployment token is stored: the workflow fetches it with its Azure login on e
 
 ## Status
 
-| Area                   | Where it stands                                                                                                                                               |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Review in genki**    | Running on every pull request since 2026-11-09, with a silent group of 25 percent.                                                                            |
-| **Experiment**         | Weeks 1 and 2 are setup. The decision rests on weeks 3 to 6, 2026-11-23 to 2026-12-20.                                                                        |
-| **Dashboard**          | Deployed and rebuilt every hour on weekdays. Sign-in waits for admin consent on the app registration, and the custom domain for its DNS delegation.           |
-| **Other repositories** | Can join the dashboard now. The review moves here as a reusable workflow only after the week-6 decision, so the setup being measured does not change halfway. |
+| Area                   | Where it stands                                                                                                                                                                 |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Review in genki**    | Running on every pull request since 2026-11-09, with a silent group of 25 percent.                                                                                              |
+| **Experiment**         | Weeks 1 and 2 are setup. The decision rests on weeks 3 to 6, 2026-11-23 to 2026-12-20.                                                                                          |
+| **Dashboard**          | Deployed and rebuilt every twenty minutes on weekdays, hourly otherwise. Sign-in waits for admin consent on the app registration, and the custom domain for its DNS delegation. |
+| **Other repositories** | Can join the dashboard now. The review moves here as a reusable workflow only after the week-6 decision, so the setup being measured does not change halfway.                   |
 
 ---
 
