@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { autoChanges, changeProblems, mergeChanges } from './changes.mjs';
-import { authorHash, finding, fromRecord, isBot, recordedFindings, REVIEW_BOT } from './pulls.mjs';
+import { authorHash, finding, fromRecord, isBot, recordedFindings, REVIEW_BOT, touchesSensitive } from './pulls.mjs';
 import { loadRepos } from './repos.mjs';
 import { fromSnapshot } from './snapshot.mjs';
 
@@ -197,7 +197,7 @@ function collect() {
         .filter(Boolean)
         .map((f) => ({ ...f, category: categories.get(`${p.number}|${f.title}`) ?? null })),
       recorded: recorded.get(p.number) ?? [],
-      sensitive: p.files.nodes.some((f) => SENSITIVE.test(f.path)),
+      sensitive: touchesSensitive(p.files.nodes.map((f) => f.path)),
       risk: risk(p.body),
       queued: p.timelineItems.nodes[0]?.createdAt ?? null,
       human_threads: threads.map((t) => humanThread(t, login)).filter(Boolean),
