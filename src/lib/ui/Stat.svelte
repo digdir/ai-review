@@ -1,15 +1,20 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte';
-  import { LED } from '../labels';
-  import type { Status } from '../types';
+  import Explain from './Explain.svelte';
 
-  let { label, value, help, status, children }: { label: string; value: string; help: string; status?: Status | null; children?: Snippet } = $props();
+  let {
+    label,
+    value,
+    unit,
+    sub,
+    means,
+    source,
+    doc,
+  }: { label: string; value: string; unit?: string; sub: string; means: string; source: string; doc?: [string, string] } = $props();
 </script>
 
 <div class="stat">
-  <span class="stat-label">
-    {#if status}<i class="led {LED[status]}"></i>{/if}{label}<span class="help" title={help} aria-label={help} role="img">?</span>
-  </span>
-  <span class="stat-value">{value}</span>
-  <span class="stat-sub">{@render children?.()}</span>
+  <span class="label">{label}</span>
+  <Explain name={label} {means} {source} {doc} />
+  <span class="value num">{value}{#if unit}<small>{unit}</small>{/if}</span>
+  <span class="sub">{sub}</span>
 </div>

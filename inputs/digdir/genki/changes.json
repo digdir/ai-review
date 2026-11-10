@@ -2,11 +2,19 @@
   {
     "date": "2026-11-09",
     "kind": "setup",
-    "note": "Start of the experiment. Silent share set to 25 percent."
+    "note": "Start of the experiment. Silent share set to 25 percent.",
+    "item": "silent-share"
   },
   {
     "date": "2026-11-09",
     "kind": "protocol",
-    "note": "Protocol written in docs/experiment.md before the first results."
+    "note": "Protocol written in docs/experiment.md before the first results.",
+    "item": "protocol"
+  },
+  {
+    "date": "2026-11-10",
+    "kind": "protocol",
+    "note": "Purpose line, the privacy of the author hash, the optional change-log fields and what the criteria do after week 6 added to docs/experiment.md. Thresholds and decision rule unchanged.",
+    "because": "Decided by the owner with the dashboard rework, before the measurement starts"
   }
 ]

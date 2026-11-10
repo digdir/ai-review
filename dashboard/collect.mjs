@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { autoChanges, changeProblems, mergeChanges } from './changes.mjs';
+import { authorHash, finding, fromRecord, isBot, recordedFindings, REVIEW_BOT } from './pulls.mjs';
 import { loadRepos } from './repos.mjs';
 import { fromSnapshot } from './snapshot.mjs';
 
@@ -15,14 +16,6 @@ const sh = (cmd, args) => execFileSync(cmd, args, { encoding: 'utf8', maxBuffer:
 const gh = (...a) => JSON.parse(sh('gh', a));
 const graphql = (query, vars) =>
   gh('api', 'graphql', '-f', `query=${query}`, ...Object.entries(vars).flatMap(([k, v]) => ['-F', `${k}=${v}`])).data;
-const isBot = (a) => !a || a.__typename === 'Bot' || /\[bot\]$/.test(a.login) || a.login === 'github-actions';
-const REVIEW_BOT = (a) => a?.login === 'github-actions' || a?.login === 'github-actions[bot]';
-const SEVERITY = /^\*\*(Important|Nit|Pre-existing)\*\*/;
-const DISMISSED = /\b(not fixing|won't fix|wontfix|false positive|this is wrong|not a problem)\b/i;
-const FIXED_REPLY = /^Fixed in `?([0-9a-f]{7,40})/;
-const SENSITIVE = /^(packages\/identity|packages\/guardrails|infra\/|\.github\/)|Dockerfile|\/migrations?\/|\/(auth|tenan|gate|principal|rights|audit|secrets?)[^/]*($|\/)/i;
-const TITLE = /^\*\*(?:Important|Nit|Pre-existing)\*\*:?\s*(.*)/;
-
 function risk(body) {
   const m = /##\s*Risk\s*\n([\s\S]*?)(\n##\s|$)/i.exec(body ?? '');
   const text = (m?.[1] ?? '').replace(/<!--[\s\S]*?-->/g, '').trim();
@@ -58,36 +51,6 @@ function pullRequests() {
   return out;
 }
 
-function finding(t) {
-  const [first, ...replies] = t.comments.nodes;
-  const sev = SEVERITY.exec(first.body)?.[1];
-  if (!sev) return null;
-  const followUp = replies.find((r) => REVIEW_BOT(r.author) && FIXED_REPLY.test(r.body));
-  const human = replies.filter((r) => !isBot(r.author));
-  const outcome = followUp
-    ? 'fixed'
-    : human.some((r) => DISMISSED.test(r.body))
-      ? 'dismissed'
-      : t.isResolved
-        ? 'resolved'
-        : t.isOutdated
-          ? 'outdated'
-          : human.length
-            ? 'discussed'
-            : 'open';
-  return {
-    posted: first.createdAt,
-    severity: sev,
-    title: TITLE.exec(first.body)?.[1]?.split('\n')[0]?.trim() ?? '',
-    path: t.path,
-    line: t.line ?? null,
-    outcome,
-    replies: human.length,
-    suggestion: first.body.includes('```suggestion'),
-    url: first.url,
-  };
-}
-
 function humanThread(t, prAuthor) {
   const first = t.comments.nodes[0];
   if (!first || isBot(first.author) || first.author.login === prAuthor) return null;
@@ -95,11 +58,13 @@ function humanThread(t, prAuthor) {
 }
 
 let categories = new Map();
+let recorded = new Map();
 
 function runRecords() {
   const arts = sh('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts?per_page=100`, '--paginate', '--jq', '.artifacts[]|select(.name|startswith("review-run-"))|select(.expired|not)|{id,name}|tojson'])
     .split('\n').filter(Boolean).map((l) => JSON.parse(l));
   const out = [];
+  const raw = [];
   for (const a of arts) {
     const file = join(CACHE, `artifact-${a.id}.json`);
     if (!existsSync(file)) {
@@ -114,9 +79,11 @@ function runRecords() {
     const r = JSON.parse(readFileSync(file, 'utf8'));
     if (r?.schema === 'digdir.ai-review.run/v1') {
       for (const f of r.findings) if (f.category) categories.set(`${r.pr_number}|${f.title}`, f.category);
-      out.push({ ...r, findings: r.findings.length, source: 'record' });
+      raw.push(r);
+      out.push(fromRecord(r));
     }
   }
+  recorded = recordedFindings(raw);
   return out;
 }
 
@@ -223,11 +190,13 @@ function collect() {
       human_review: people.length > 0 || threads.some((t) => humanThread(t, login)),
       arm: armByPr.get(p.number)?.arm ?? null,
       author_kind: armByPr.get(p.number)?.author_kind ?? null,
+      author_hash: authorHash(login),
       findings: threads
         .filter((t) => REVIEW_BOT(t.comments.nodes[0].author))
         .map(finding)
         .filter(Boolean)
-        .map(({ title, ...f }) => ({ ...f, category: categories.get(`${p.number}|${title}`) ?? null })),
+        .map((f) => ({ ...f, category: categories.get(`${p.number}|${f.title}`) ?? null })),
+      recorded: recorded.get(p.number) ?? [],
       sensitive: p.files.nodes.some((f) => SENSITIVE.test(f.path)),
       risk: risk(p.body),
       queued: p.timelineItems.nodes[0]?.createdAt ?? null,
@@ -271,6 +240,7 @@ for (const repo of loadRepos(join(ROOT, 'repos'))) {
   CACHE = join(OUT, 'cache', repo.repo);
   mkdirSync(CACHE, { recursive: true });
   categories = new Map();
+  recorded = new Map();
   try {
     collect();
     index.push({ repo: repo.repo, ok: true, at: new Date().toISOString() });

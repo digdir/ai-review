@@ -1,4 +1,5 @@
 export const KINDS = ['rule', 'model', 'procedure', 'workflow', 'setup', 'protocol'];
+export const OUTCOMES = ['keep', 'adjust', 'stop'];
 
 export const DEFAULT_PATHS = {
   rule: ['REVIEW.md', '**/AGENTS.md', '**/CLAUDE.md', '.github/review-security.md'],
@@ -46,6 +47,9 @@ export function changeProblems(list) {
     if (!KINDS.includes(c?.kind)) out.push(`entry ${i + 1}: kind must be one of ${KINDS.join(', ')}`);
     if (!c?.note) out.push(`entry ${i + 1}: note is missing`);
     if (c?.ref != null && !/^[\w.-]+\/[\w.-]+#\d+$/.test(c.ref)) out.push(`entry ${i + 1}: ref must be owner/name#number`);
+    if (c?.item != null && !/^[a-z0-9-]+$/.test(c.item)) out.push(`entry ${i + 1}: item must be a lowercase key such as graders`);
+    if (c?.because != null && typeof c.because !== 'string') out.push(`entry ${i + 1}: because must be text`);
+    if (c?.outcome != null && (!OUTCOMES.includes(c.outcome) || c.kind !== 'protocol')) out.push(`entry ${i + 1}: outcome must be ${OUTCOMES.join(', ')} on kind protocol`);
   });
   return out;
 }

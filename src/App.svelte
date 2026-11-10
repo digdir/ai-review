@@ -1,110 +1,183 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+  import { hashLogin } from './lib/author';
+  import { makeConfig, timing } from './lib/compute';
   import { fleet, type Index } from './lib/fleet';
-  import { stamp } from './lib/format';
+  import { stamp, weekday } from './lib/format';
+  import { SCREENS } from './lib/labels';
   import { parseRoute } from './lib/route';
+  import { SAMPLE_STATES, sample, type SampleState } from './lib/sample';
   import type { Data } from './lib/types';
   import Fleet from './views/Fleet.svelte';
   import Repo from './views/Repo.svelte';
+  import Start from './views/Start.svelte';
 
   let { repos, index }: { repos: Data[]; index: Index | null } = $props();
 
+  const store = {
+    get: (k: string) => {
+      try {
+        return localStorage.getItem(k);
+      } catch {
+        return null;
+      }
+    },
+    set: (k: string, v: string) => {
+      try {
+        localStorage.setItem(k, v);
+      } catch {
+        return;
+      }
+    },
+  };
+
   const names = $derived(repos.map((d) => d.config.repo).sort());
   let hash = $state(location.hash);
-  let showSample = $state(false);
-  let theme = $state(read());
+  let sampleState = $state<SampleState | 'off'>((store.get('sample') as SampleState | null) ?? 'off');
+  let theme = $state(store.get('theme') ?? 'auto');
+  let username = $state(store.get('gh-user') ?? '');
+  let author = $state<string | null>(null);
+  let startDismissed = $state(store.get('start-dismissed') === '1');
 
   const route = $derived(parseRoute(hash, names));
-  const current = $derived(route.repo ? repos.find((d) => d.config.repo === route.repo) : undefined);
-  const rows = $derived(fleet(repos, index));
-  const fresh = $derived(current?.generatedAt ?? index?.generatedAt ?? repos[0]?.generatedAt);
-  const failed = $derived(index?.repos.some((r) => !r.ok) ?? false);
-
-  function read(): 'dark' | 'light' {
-    try {
-      return localStorage.getItem('theme') === 'light' ? 'light' : 'dark';
-    } catch {
-      return 'dark';
-    }
-  }
+  const fake = $derived(sampleState === 'off' ? null : sample(sampleState));
+  const shown = $derived(repos.map((d) => (fake ? { ...fake, config: { ...fake.config, repo: d.config.repo } } : d)));
+  const current = $derived(route.repo ? shown.find((d) => d.config.repo === route.repo) : undefined);
+  const entry = $derived(index?.repos.find((r) => r.repo === route.repo));
+  const rows = $derived(fleet(shown, sampleState === 'off' ? index : null));
+  const fresh = $derived(current?.generatedAt ?? index?.generatedAt ?? shown[0]?.generatedAt);
+  const failed = $derived(sampleState === 'off' && (index?.repos.some((r) => !r.ok) ?? false));
+  const first = $derived(current ?? shown[0]);
+  const dates = $derived.by(() => {
+    if (!first) return { start: 'the start', measure: 'week 3', decision: 'week 7' };
+    const t = timing(Date.parse(first.generatedAt), first.config.start, makeConfig(first));
+    return { start: weekday(t.startMs), measure: weekday(t.measureMs), decision: weekday(t.decisionMs) };
+  });
+  const repoForNav = $derived(route.repo ?? names[0]);
 
   $effect(() => {
-    document.body.dataset.colorScheme = theme;
-    try {
-      localStorage.setItem('theme', theme);
-    } catch {
-      /* storage blocked */
-    }
+    document.documentElement.dataset.colorScheme = theme;
   });
+
+  async function setUsername(value: string) {
+    username = value;
+    const u = value.trim();
+    store.set('gh-user', u);
+    const h = u ? await hashLogin(u) : null;
+    if (username.trim() === u) author = h;
+  }
+  setUsername(store.get('gh-user') ?? '');
 
   $effect(() => {
     if (route.canonical !== hash.replace(/^#/, '')) history.replaceState(null, '', '#' + route.canonical);
   });
 
-  function pick(ev: Event) {
+  $effect(() => {
+    const anchor = route.anchor;
+    void route.screen;
+    void route.page;
+    tick().then(() => {
+      const el = anchor && document.getElementById(anchor);
+      if (el) el.scrollIntoView({ block: 'start' });
+      else window.scrollTo(0, 0);
+    });
+  });
+
+  function toggleTheme() {
+    const dark = theme === 'dark' || (theme === 'auto' && matchMedia('(prefers-color-scheme: dark)').matches);
+    theme = dark ? 'light' : 'dark';
+    store.set('theme', theme);
+  }
+
+  function dismiss() {
+    startDismissed = true;
+    store.set('start-dismissed', '1');
+  }
+
+  function pickRepo(ev: Event) {
     const v = (ev.currentTarget as HTMLSelectElement).value;
-    location.hash = v ? `/${v}/${route.view ?? 'overview'}` : '/';
+    location.hash = `/${v}/${route.screen ?? 'overview'}`;
   }
 </script>
 
 <svelte:window onhashchange={() => (hash = location.hash)} />
 
-<header class="topbar">
+<header class="top">
   <div class="wrap">
-    <a class="org" href="https://www.digdir.no" aria-label="Digitaliseringsdirektoratet">
-      <svg viewBox="0 0 25.1 24.93" aria-hidden="true"
+    <a class="brand" href="#/" aria-label="ai-review, Digdir Innovation Lab">
+      <svg class="mark" viewBox="0 0 25.1 24.93" aria-hidden="true"
         ><path
           fill="currentColor"
           d="M12.67.1H.5A.5.5,0,0,0,0,.6V24.33a.5.5,0,0,0,.5.5H12.67A12.37,12.37,0,0,0,12.67.1m1.19,21A8.8,8.8,0,1,1,21,14a8.8,8.8,0,0,1-7.18,7.18"
         /></svg
       >
-      <span><b>Digdir</b><small>Innovation Lab</small></span>
+      <span class="t"><b>ai-review</b><small>Digdir Innovation Lab</small></span>
     </a>
     <span class="divider" aria-hidden="true"></span>
-    <a class="product" href="#/">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"
-        ><path d="M8 6 2 12l6 6" /><path d="m16 6 6 6-6 6" /><path d="m9.5 12.5 2 2 3.5-4.5" /></svg
-      >
-      ai-review <small>dashboard</small>
-    </a>
-    <select class="ds-input repo-switch" data-size="sm" aria-label="Repository" onchange={pick} value={route.repo ?? ''}>
-      <option value="">All repositories ({names.length})</option>
-      {#each names as n (n)}<option value={n}>{n}</option>{/each}
-    </select>
-    <span class="spacer"></span>
-    <div class="tools">
-      {#if route.repo}
-        <label class="sample-switch"><input type="checkbox" class="ds-input" data-size="sm" bind:checked={showSample} /> Sample data</label>
+    {#if names.length > 1}
+      <select class="repo" aria-label="Repository" onchange={pickRepo} value={repoForNav}>
+        {#each names as n (n)}<option value={n}>{n}</option>{/each}
+      </select>
+    {:else if repoForNav}
+      <span class="repo">{repoForNav}</span>
+    {/if}
+    <nav class="main" aria-label="Screens">
+      {#if repoForNav}
+        {#each SCREENS as [id, label] (id)}
+          <a href="#/{repoForNav}/{id}" aria-current={route.page === 'screen' && route.screen === id ? 'page' : undefined}>{label}</a>
+        {/each}
       {/if}
+      <a href="#/" aria-current={route.page === 'repositories' ? 'page' : undefined}>Repositories</a>
+      <a href="#/start" class="start" aria-current={route.page === 'start' ? 'page' : undefined}>Start here</a>
+    </nav>
+    <div class="tools">
+      <label class="seg-label" for="sample">Sample data</label>
+      <select id="sample" class="sample" bind:value={sampleState} onchange={() => store.set('sample', sampleState)}>
+        <option value="off">Off</option>
+        {#each SAMPLE_STATES as [id, label] (id)}<option value={id}>{label}</option>{/each}
+      </select>
       {#if fresh}
-        <span class="fresh" title={failed ? 'The last collection failed for at least one repository' : 'When the data was collected'}
-          ><i class="led {failed ? 'bad' : 'ok'}"></i>data {stamp(fresh)}</span
+        <span class="stamp" title={failed ? 'The last collection failed for at least one repository' : 'When the data was collected'}
+          ><i class={['dot', failed && 'bad']}></i>data {stamp(fresh)}</span
         >
       {/if}
-      <button class="icon-btn" type="button" aria-label="Switch to {theme === 'dark' ? 'light' : 'dark'} mode" onclick={() => (theme = theme === 'dark' ? 'light' : 'dark')}>
-        {#if theme === 'dark'}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4" /><path
-              d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"
-            /></svg
-          >
-        {:else}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
-        {/if}
+      <button type="button" class="icon" aria-label="Switch between light and dark" onclick={toggleTheme}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" /></svg>
       </button>
     </div>
   </div>
 </header>
 
-{#if current && route.view}
-  {#key current.config.repo}
-    <Repo real={current} view={route.view} {showSample} />
-  {/key}
-{:else}
-  <Fleet {rows} />
-{/if}
-
-<footer class="footer">
+<main>
   <div class="wrap">
-    <span>Digdir Innovation Lab · AI code review experiment</span>
+    {#if sampleState !== 'off'}
+      <p class="banner" role="note">Sample data: made-up numbers in the real shape, to judge the layout at {SAMPLE_STATES.find(([id]) => id === sampleState)?.[1].toLowerCase()}. Nothing here is a real measurement.</p>
+    {/if}
+    {#if route.page === 'start'}
+      <Start {dates} />
+    {:else if current && route.screen}
+      {#key current.config.repo + sampleState}
+        <Repo
+          data={current}
+          screen={route.screen}
+          collected={current.generatedAt}
+          ok={sampleState !== 'off' || (entry?.ok ?? true)}
+          {author}
+          {username}
+          onusername={setUsername}
+          showStart={!startDismissed}
+          ondismiss={dismiss}
+        />
+      {/key}
+    {:else}
+      <Fleet {rows} />
+    {/if}
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Digdir Innovation Lab, AI code review</span>
     <a href="https://github.com/digdir/ai-review">github.com/digdir/ai-review</a>
   </div>
 </footer>

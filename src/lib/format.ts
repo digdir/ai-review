@@ -26,3 +26,12 @@ export const nok = (v: number | null | undefined, d = 0): string => (missing(v) 
 
 export const minutes = (v: number | null | undefined): string =>
   missing(v) ? '–' : v < 1 ? `${fmt(v * 60)} s` : v < 90 ? `${fmt(v, v < 10 ? 1 : 0)} min` : `${fmt(v / 60, 1)} h`;
+
+export const weekday = (iso: string | number): string =>
+  new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: TZ }).format(new Date(iso));
+
+export const hours = (v: number | null | undefined): string => (missing(v) ? '–' : minutes(v * 60));
+
+export const usd = (v: number | null | undefined): string => (missing(v) ? '–' : `USD ${fmt(v, 2)}`);
+
+export const plural = (n: number, one: string, many = one + 's'): string => `${fmt(n)} ${n === 1 ? one : many}`;
