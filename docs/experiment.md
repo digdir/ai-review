@@ -4,6 +4,8 @@ The protocol for the six-week AI code review experiment in [digdir/genki](https:
 
 ## Question
 
+We want to speed up development without getting lost in AI-generated code; the review exists so we can trust pull requests more without introducing bad code.
+
 Does an AI review against rules the repository writes itself make changes safer without making the team slower, at a cost worth paying?
 
 |     | Hypothesis                                                                                   | Answered by                                                                     |
@@ -60,6 +62,8 @@ The approved proposal says to stop if more than half the findings are dismissed 
 - **Adjust**: a criterion is missed, but the change log points to a fix that has not yet had time (a rule, a cheaper model, fewer runs). Run four more weeks with that one change.
 - **Stop**: precision or the dismissed rate misses its threshold after the rules were tightened, or the cost cannot be brought under the cap.
 
+**After the decision.** The review keeps running and the seven criteria stay on as health, read over the last four weeks with the same thresholds. A criterion outside its threshold goes to the lab's Monday checklist, not to a new decision. Grading stops after week 6 unless the change log says it continues.
+
 **H2** has no threshold, because six weeks is too short to show it with confidence. It is reported as a description: for each rule added to `REVIEW.md` or `AGENTS.md`, the number of findings of the same kind in the two weeks before and after, plus the fix rate in weeks 1 and 2 against weeks 5 and 6.
 
 ## What may change during the experiment
@@ -86,7 +90,11 @@ Changes made by a merged pull request in genki are found automatically: `REVIEW.
 ]
 ```
 
-`kind` is one of `rule`, `model`, `procedure`, `workflow`, `setup` or `protocol`. `ref` is the pull request that made the change.
+`kind` is one of `rule`, `model`, `procedure`, `workflow`, `setup` or `protocol`. `ref` is the pull request that made the change. Three optional fields:
+
+- `because`: why the change was made, in one sentence. The dashboard shows it with the change.
+- `item`: which setup step an entry completes, one of `silent-share`, `protocol`, `graders`, `privacy`, `channel` and `sign-in`. The dashboard's setup list reads these. After the decision, an entry of kind `protocol` with item `grading` says grading continues.
+- `outcome`: on the entry of kind `protocol` that records the decision, `keep`, `adjust` or `stop`.
 
 ## Hand grading
 
@@ -113,6 +121,15 @@ When a merged change turns out to have a bug, the pull request that fixes it get
 - The review uploads a run record for every run, kept 90 days in genki.
 - Each dashboard run uploads the collected data as an artifact, kept 90 days.
 - At the decision, the final data is committed under `records/digdir/genki/` together with the report, so the result can be checked after the artifacts expire.
+
+## Privacy
+
+- No GitHub logins are stored. Each pull request carries a SHA-256 hash of its author's login, lowercased, computed by the collector. The dashboard's username filter hashes what the viewer types in the browser and compares the two; the username never leaves the browser and is not shown on any pull request.
+- The hash is a pseudonym, not anonymous: anyone who knows a login can compute its hash and find that person's pull requests. The repository is public, so the same is already visible on GitHub; the hash keeps logins out of the collected data and the dashboard.
+- Only totals per repository and week are shown. Cells with fewer than `minCell` pull requests are hidden.
+- The text of each finding stays in GitHub. The dashboard shows its title, the first line, and links to the thread.
+- The pulse survey is stored with no names.
+- The assessment is confirmed with the data protection officer before week 3.
 
 ## Report
 

@@ -7,8 +7,8 @@ For the lab members who run the review and the experiment: the weekly routine, w
 A workflow opens an issue **Experiment week N of 6** in this repository each Monday morning, with last week's numbers and this checklist. Work through it and close the issue.
 
 1. **Changes.** The issue lists the review setup that changed last week. Changes to `REVIEW.md`, `AGENTS.md`, `CLAUDE.md`, the security checklist, the review workflows and the review skill are found automatically from merged pull requests. Check that the kind is right. Add anything changed outside the repository (the model deployment, a repository variable, the budget) to `inputs/<owner>/<name>/changes.json`. See [the change log](experiment.md#the-change-log).
-2. **Failed runs.** Open the Runs tab. A failed review means a pull request got no review; see [When a review fails](#when-a-review-fails).
-3. **Cost.** Compare the month's projection with the cap on the Cost tab.
+2. **Failed runs.** Open Operations on the dashboard. A failed review means a pull request got no review; see [When a review fails](#when-a-review-fails).
+3. **Cost.** Compare the month's projection with the cap under Operations.
 4. **Grading**, weeks 3 to 6. Draw the sample and give it to the two graders; see [grading.md](grading.md).
 5. **Pulse survey**, end of weeks 2 and 6. Send the three questions and enter the answers in `inputs/<owner>/<name>/pulse.json`.
 6. **Missed problems.** The issue lists pull requests labelled `escaped`. Check that each was a problem the review had a chance to see.
@@ -29,7 +29,7 @@ A failed run does not block the pull request. It is recorded and shows on the da
 
 The budget `budget-genki-review` alerts at 80 and 100 percent of NOK 7,500 a month, and when the forecast passes 100.
 
-1. Look at the Cost tab: is it more pull requests, larger pull requests or more `review again`?
+1. Look at Operations on the dashboard: is it more pull requests, larger pull requests or more `review again`?
 2. If the month will go over, in this order: limit `review again`, use a cheaper model for the review, or pause the review by disabling the workflow. Log each as a change.
 3. Tell the approvers if the cap will be passed.
 

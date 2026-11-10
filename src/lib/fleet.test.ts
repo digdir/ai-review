@@ -1,15 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { fleet, overall } from './fleet';
+import { fleet } from './fleet';
 import { sample } from './sample';
 
-describe('the overview of all repositories', () => {
-  it('gives GO only when every criterion is met, and NO-GO as soon as one is not', () => {
-    expect(overall(['ok', 'ok'])).toBe('ok');
-    expect(overall(['ok', 'bad', 'wait'])).toBe('bad');
-    expect(overall(['ok', 'wait', 'early'])).toBe('wait');
-    expect(overall(['ok', 'early'])).toBe('early');
-  });
-
+describe('the repositories screen', () => {
   it('shows a repository whose collection failed, keeping its last data', () => {
     const data = sample();
     const [row] = fleet([data], {
@@ -18,7 +11,7 @@ describe('the overview of all repositories', () => {
       repos: [{ repo: data.config.repo, ok: false, at: data.generatedAt, error: 'HTTP 403' }],
     });
     expect(row.error).toBe('HTTP 403');
-    expect(row.status).not.toBeNull();
+    expect(row.phase).toBe('measuring');
   });
 
   it('lists a repository in the index that has no data yet', () => {
@@ -27,8 +20,8 @@ describe('the overview of all repositories', () => {
       generatedAt: '2026-11-09T12:00:00Z',
       repos: [{ repo: 'digdir/new', ok: false, at: '2026-11-09T12:00:00Z', error: 'App not installed' }],
     });
-    expect(rows.map((r) => [r.repo, r.status, r.error])).toEqual([
-      ['digdir/genki', expect.any(String), null],
+    expect(rows.map((r) => [r.repo, r.phase, r.error])).toEqual([
+      ['digdir/genki', 'measuring', null],
       ['digdir/new', null, 'App not installed'],
     ]);
   });
@@ -37,5 +30,9 @@ describe('the overview of all repositories', () => {
     const [row] = fleet([sample()], null);
     expect(row.reviewedWeek).toBeGreaterThan(0);
     expect(row.reviewedWeek).toBeLessThanOrEqual(sample().prs.length);
+  });
+
+  it('shows the logged decision after the experiment', () => {
+    expect(fleet([sample('after')], null)[0]).toMatchObject({ phase: 'after', decided: 'keep' });
   });
 });

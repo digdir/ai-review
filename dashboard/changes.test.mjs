@@ -76,4 +76,17 @@ describe('hand-written change log', () => {
       'entry 1: ref must be owner/name#number',
     ]);
   });
+
+  it('accepts a setup item, a reason and a decision outcome', () => {
+    expect(changeProblems([
+      { date: '2026-11-23', kind: 'setup', item: 'graders', note: 'Two graders named' },
+      { date: '2026-11-24', kind: 'rule', ref: 'digdir/genki#447', note: 'Tenant checks', because: 'A finding was dismissed as "which route?"' },
+      { date: '2026-12-22', kind: 'protocol', item: 'decision', outcome: 'keep', note: 'Decision: Keep' },
+    ])).toEqual([]);
+  });
+
+  it('allows a decision outcome only on kind protocol', () => {
+    expect(changeProblems([{ date: '2026-12-22', kind: 'setup', outcome: 'keep', note: 'Keep' }])).toEqual(['entry 1: outcome must be keep, adjust, stop on kind protocol']);
+    expect(changeProblems([{ date: '2026-12-22', kind: 'protocol', outcome: 'go', note: 'Go' }])).toEqual(['entry 1: outcome must be keep, adjust, stop on kind protocol']);
+  });
 });

@@ -1,6 +1,6 @@
 import { compute, makeConfig } from './compute';
 import { WEEK, rate, type Rate } from './stats';
-import type { Data, Status } from './types';
+import type { Data, Decision, Phase } from './types';
 
 export interface IndexEntry {
   repo: string;
@@ -17,13 +17,15 @@ export interface Index {
 
 export interface FleetRow {
   repo: string;
-  status: Status | null;
-  met: number;
-  criteria: number;
+  phase: Phase | null;
+  week: number;
+  decided: Decision | null;
+  counts: { met: number; notmet: number; early: number } | null;
   reviewedWeek: number;
   fixed: Rate;
   dismissed: Rate;
-  projected: number;
+  projected: number | null;
+  spent: number;
   budgetNok: number;
   lastRun: string | null;
   lastRunFailed: boolean;
@@ -33,23 +35,21 @@ export interface FleetRow {
 
 const none = rate(0, 0, 1);
 
-export const overall = (statuses: Status[]): Status =>
-  statuses.every((s) => s === 'ok') ? 'ok' : statuses.includes('bad') ? 'bad' : statuses.includes('wait') ? 'wait' : 'early';
-
 export function row(data: Data): FleetRow {
   const config = makeConfig(data);
   const m = compute(data, config);
   const weekAgo = m.now - WEEK;
-  const reviewedWeek = new Set(m.reviews.filter((x) => Date.parse(x.started_at) >= weekAgo && x.arm !== 'shadow').map((x) => x.pr_number)).size;
   return {
     repo: data.config.repo,
-    status: overall(m.criteria.map((c) => c.status)),
-    met: m.met,
-    criteria: m.criteria.length,
-    reviewedWeek,
-    fixed: rate(m.onMerged.filter((f) => f.outcome === 'fixed').length, m.onMerged.length, config.minCell),
-    dismissed: m.dismissed,
+    phase: m.phase,
+    week: m.week,
+    decided: m.decided?.outcome ?? null,
+    counts: m.counts,
+    reviewedWeek: new Set(m.reviews.filter((x) => Date.parse(x.started_at) >= weekAgo && x.arm !== 'shadow').map((x) => x.pr_number)).size,
+    fixed: m.repo.allFix,
+    dismissed: m.repo.dismissed,
     projected: m.projected,
+    spent: m.monthNok,
     budgetNok: config.budgetNok,
     lastRun: m.lastRun?.started_at ?? null,
     lastRunFailed: m.lastRun?.completed === false,
@@ -68,19 +68,8 @@ export function fleet(repos: Data[], index: Index | null): FleetRow[] {
     const failed = entry && !entry.ok ? (entry.error ?? 'Collection failed') : null;
     if (!data)
       return {
-        repo: name,
-        status: null,
-        met: 0,
-        criteria: 0,
-        reviewedWeek: 0,
-        fixed: none,
-        dismissed: none,
-        projected: 0,
-        budgetNok: 0,
-        lastRun: null,
-        lastRunFailed: false,
-        generatedAt: null,
-        error: failed ?? 'No data yet',
+        repo: name, phase: null, week: 0, decided: null, counts: null, reviewedWeek: 0, fixed: none, dismissed: none, projected: null, spent: 0,
+        budgetNok: 0, lastRun: null, lastRunFailed: false, generatedAt: null, error: failed ?? 'No data yet',
       };
     return { ...row(data), error: failed };
   });

@@ -43,7 +43,7 @@ npm run collect   # read the repositories into data/
 npm run dev       # the dashboard with hot reload
 ```
 
-Without logins, open the dashboard and tick **Sample data** in the top bar to see it with sample data in the real shape.
+Without logins, open the dashboard and pick a moment under **Sample data** in the top bar (week 1, week 5 or after the experiment) to see it with sample data in the real shape.
 
 ## Documentation map
 
@@ -64,8 +64,8 @@ inputs/<owner>/<name>/        hand-entered data: changes, grading, pulse
 dashboard/                    collector, change log, grading and weekly issue (plain Node)
 src/                          the dashboard (Svelte 5 and TypeScript)
   lib/compute.ts              every metric and criterion
-  tabs/                       one component per tab
-  views/                      the overview and one repository
+  screens/                    Overview, Repository, Findings and Operations
+  views/                      Repositories, Start here and one repository
 docs/                         the documentation above
 .github/workflows/            dashboard.yml (every 20 min by day, hourly otherwise), weekly.yml (Mondays)
 ```
@@ -95,7 +95,7 @@ flowchart LR
 
 1. **Review.** `review.yml` in the repository runs when a pull request opens. One in four is in the silent group: reviewed and recorded, but nothing is posted. After each push a cheaper model checks the open findings and resolves the fixed ones.
 2. **Record.** Every run uploads a run record. A daily `review-snapshot` workflow records the CodeQL alerts, which this repository cannot read with its own token.
-3. **Collect.** Every twenty minutes on weekdays and every hour otherwise, `dashboard/collect.mjs` reads pull requests, threads, run records, CI, the snapshot and Azure cost for each repository in `repos/`, plus the hand-entered inputs. Changes to the review setup are found in merged pull requests and joined with the change log. A repository that fails is marked on the overview and does not stop the others. It stores no logins.
+3. **Collect.** Every twenty minutes on weekdays and every hour otherwise, `dashboard/collect.mjs` reads pull requests, threads, run records, CI, the snapshot and Azure cost for each repository in `repos/`, plus the hand-entered inputs. Changes to the review setup are found in merged pull requests and joined with the change log. A repository that fails is marked on the overview and does not stop the others. It stores no logins, only a hash of each pull request author's login for the username filter.
 4. **Build.** Vite builds the dashboard with the data bundled in, and the workflow deploys the static site to Azure Static Web Apps. Only accounts in the lab's tenant can open it.
 5. **Routine.** Each Monday `weekly.yml` opens an issue with last week's numbers and the checklist from the [runbook](docs/runbook.md#every-monday).
 6. **Decide.** After week 6 the criteria in [the protocol](docs/experiment.md) decide: keep, adjust or stop.

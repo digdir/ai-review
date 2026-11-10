@@ -13,6 +13,16 @@ export interface Finding {
   suggestion?: boolean;
   url: string;
   line?: number | null;
+  title?: string;
+  answered?: string | null;
+}
+
+export interface RecordedFinding {
+  posted: string;
+  severity: Severity;
+  category?: string | null;
+  title: string;
+  path: string;
 }
 
 export interface HumanThread {
@@ -40,6 +50,8 @@ export interface Pr {
   human_threads?: HumanThread[];
   escaped?: boolean;
   head?: string | null;
+  author_hash?: string | null;
+  recorded?: RecordedFinding[];
 }
 
 export interface Run {
@@ -60,7 +72,9 @@ export interface Run {
   prompt_version?: string | null;
   review_again?: boolean;
   lines_changed?: number | null;
-  tokens?: { input?: number; output?: number; cache_read?: number } | null;
+  tokens?: { input?: number | null; output?: number | null; cache_read?: number | null } | null;
+  head_sha?: string | null;
+  permission_denials?: number | null;
 }
 
 export interface CiRun {
@@ -86,10 +100,15 @@ export interface Change {
   ref?: string;
   note: string;
   source?: 'auto' | 'manual';
+  item?: string;
+  because?: string;
+  outcome?: Decision;
 }
 
+export type Decision = 'keep' | 'adjust' | 'stop';
+
 export interface Grading {
-  grades: { severity: Severity; grade: 'right_worth' | 'right_not_worth' | 'wrong' | 'unclear' }[];
+  grades: { week?: number; severity: Severity; grade: 'right_worth' | 'right_not_worth' | 'wrong' | 'unclear' }[];
   followup: { correct: boolean }[];
   agreement?: number | null;
 }
@@ -135,4 +154,6 @@ export interface Data {
   now?: number;
 }
 
-export type Status = 'ok' | 'bad' | 'early' | 'wait';
+export type Status = 'met' | 'notmet' | 'early';
+export type Check = 'done' | 'todo' | 'later';
+export type Phase = 'setup' | 'measuring' | 'after';

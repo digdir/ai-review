@@ -5,7 +5,7 @@ A proposal for turning the genki review and its dashboard into something any Dig
 ## What a repository gets
 
 1. **The review**, as a reusable workflow in this repository. The repository adds one short caller workflow and a `REVIEW.md` with its own rules.
-2. **A page on the dashboard**, with the same tabs as genki has today, and a row on an overview of every repository.
+2. **A page on the dashboard**, with the same screens as genki has today, and a row on the Repositories screen.
 3. **Its own settings**, in one file in this repository: when it started, which CI workflow counts, its budget, and whether it runs the experiment with a silent group.
 
 Joining is config, not code: one pull request here and one in the repository. No admin screen until the config proves too hard.
@@ -63,7 +63,7 @@ A repository without `experiment` gets the review and the plain numbers (finding
 ## The dashboard
 
 - **Oversikt** (new first page): one row per repository with its status (GO, NO-GO, STANDBY, HOLD), pull requests reviewed this week, the share of findings that led to a change, noise, cost against budget, and the last run. Click a row to open it.
-- **One repository**: today's tabs, unchanged, at `#/<owner>/<name>/<tab>`.
+- **One repository**: the same screens, at `#/<owner>/<name>/<screen>`.
 - The privacy rule stays per repository: cells with fewer than `minCell` pull requests are hidden. Small repositories will show little until they have volume, and the page says so.
 
 ## Who sees what
