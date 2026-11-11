@@ -163,6 +163,15 @@ function sweepDetails(id) {
   return { record, passes };
 }
 
+function readCache(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    throw e;
+  }
+}
+
 function sweeps() {
   if (!CONFIG.workflows.sweep) return undefined;
   try {
@@ -170,7 +179,8 @@ function sweeps() {
     return runs.map((r) => {
       const id = Number(r.databaseId);
       const file = join(CACHE, `sweep-${id}.json`);
-      if (existsSync(file)) return sweepRun(r, ...JSON.parse(readFileSync(file, 'utf8')));
+      const cached = readCache(file);
+      if (cached) return sweepRun(r, ...cached);
       let details = { record: null, passes: null };
       try {
         details = sweepDetails(id);
