@@ -18,6 +18,7 @@
 
   const o = $derived(m.ops);
   const sw = $derived(m.ops.sweep);
+  const cr = $derived(m.ops.cross);
   const r = $derived(m.repo);
   const repo = $derived(data.config.repo);
   const since = $derived(weekday(m.T.startMs));
@@ -48,8 +49,8 @@
     },
     {
       term: 'Cost',
-      means: 'Azure cost of the review resource group this month, projected to the end of the month from the daily average. It counts the review, the follow-ups and the weekly security sweep, which uses the same Foundry resource. The budget alerts at 80 and 100 percent.',
-      source: 'Azure Cost Management, about a day behind. Until it arrives, the run records of the review and the security sweep in USD.',
+      means: 'Azure cost of the review resource group this month, projected to the end of the month from the daily average. It counts the review, the follow-ups, the cross-model review and the weekly security sweep, which use the same Foundry resource. The budget alerts at 80 and 100 percent.',
+      source: 'Azure Cost Management, about a day behind. Until it arrives, the run records of the review, the cross-model review and the security sweep in USD.',
       doc: ['runbook', 'when-the-budget-alerts'],
     },
     {
@@ -59,8 +60,14 @@
       doc: ['runbook', 'the-security-sweep'],
     },
     {
+      term: 'Cross-model review',
+      means: 'A second reviewer from another model family reviews security-sensitive pull requests and posts its own findings. Its findings, fix and dismissed shares and cost are counted here only, never in the main review\'s figures or the criteria. Duplicates are findings it returned that the main review had already posted, so it skipped them.',
+      source: 'Review threads with the cross-model marker, and cross-review-run.json in the run artifact for runs, duplicates, tokens and cost.',
+      doc: ['runbook', 'the-cross-model-review'],
+    },
+    {
       term: 'Per reviewed pull request and per confirmed fix',
-      means: 'All review and follow-up runs divided by reviewed pull requests, or by findings answered fixed. The security sweep is not included. Anthropic charges USD 15 to 25 per review; GitHub Copilot about USD 0.52.',
+      means: 'All review and follow-up runs divided by reviewed pull requests, or by findings answered fixed. The security sweep and the cross-model review are not included. Anthropic charges USD 15 to 25 per review; GitHub Copilot about USD 0.52.',
       source: 'Run records in USD; Azure as the check.',
       doc: ['runbook', 'when-the-budget-alerts'],
     },
@@ -167,6 +174,10 @@
         <dt>Security sweep</dt>
         <dd>{nok(sw.month.nok)} in {fmt(sw.month.runs)} {sw.month.runs === 1 ? 'run' : 'runs'} ({usd(sw.month.usd)}), {m.haveAzure ? 'part of the Azure cost' : 'added to the run records'}</dd>
       {/if}
+      {#if cr.runs.length && cr.cost.priced}
+        <dt>Cross-model review</dt>
+        <dd>{nok(cr.cost.monthNok)} ({usd(cr.cost.monthUsd)}), {m.haveAzure ? 'part of the Azure cost' : 'added to the run records'}</dd>
+      {/if}
     </dl>
   </Section>
 
@@ -207,6 +218,35 @@
       {:else}
         <EmptyState>No security sweep has run yet. Each run shows here once it starts.</EmptyState>
       {/if}
+    </Section>
+  {/if}
+
+  {#if cr.runs.length || cr.posted}
+    <Section
+      id="cross-model"
+      title="Cross-model review"
+      description="A second model from another family reviews security-sensitive pull requests for blind spots it may share with the main review. Counted apart from the main review's figures."
+      doc={['runbook', 'the-cross-model-review']}
+    >
+      <dl class="facts">
+        <dt>Findings posted</dt>
+        <dd>{fmt(cr.posted)}, {fmt(cr.important)} Important, from {fmt(cr.runs.length)} {cr.runs.length === 1 ? 'run' : 'runs'} on {fmt(cr.prs)} pull {cr.prs === 1 ? 'request' : 'requests'}{#if cr.runs[0]?.model}, model {cr.runs[0].model}{/if}</dd>
+        <dt>Fixed</dt>
+        <dd>{pct(cr.fixed.v)}, {fmt(cr.fixed.k)} of {fmt(cr.fixed.n)} posted</dd>
+        <dt>Dismissed</dt>
+        <dd>{pct(cr.dismissed.v)}, {fmt(cr.dismissed.k)} of {fmt(cr.dismissed.n)} posted</dd>
+        <dt>Duplicates skipped</dt>
+        <dd>{fmt(cr.duplicates)} already posted by the main review</dd>
+        <dt>Cost</dt>
+        <dd>
+          {#if cr.cost.priced}{usd(cr.cost.usd)} in {fmt(cr.cost.priced)} {cr.cost.priced === 1 ? 'run' : 'runs'}, not in the cost per pull request{:else}Not in the run records yet{/if}.
+          {fmt(cr.tokens.input)} input and {fmt(cr.tokens.output)} output tokens
+        </dd>
+        {#if cr.silentRuns}
+          <dt>Silent group</dt>
+          <dd>{fmt(cr.silentRuns)} {cr.silentRuns === 1 ? 'run' : 'runs'} recorded, nothing posted</dd>
+        {/if}
+      </dl>
     </Section>
   {/if}
 

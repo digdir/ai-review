@@ -1,3 +1,5 @@
+import { isMain } from './pulls.mjs';
+
 export const GRADES = ['right_worth', 'right_not_worth', 'wrong', 'unclear'];
 const WEEK = 7 * 864e5;
 const SEVERITY = { important: 'Important', nit: 'Nit', preexisting: 'Pre-existing' };
@@ -58,7 +60,7 @@ export function weekFindings(records, data, week) {
 }
 
 function outcomeOf(data, pr, f) {
-  const posted = data.prs.find((p) => p.n === pr)?.findings ?? [];
+  const posted = (data.prs.find((p) => p.n === pr)?.findings ?? []).filter(isMain);
   const sev = SEVERITY[f.severity] ?? f.severity;
   const same = posted.filter((x) => x.path === f.path && x.severity === sev);
   const exact = same.filter((x) => x.line != null && x.line === (f.line_end ?? f.line_start));

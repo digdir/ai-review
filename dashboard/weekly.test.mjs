@@ -50,6 +50,17 @@ describe('the weekly issue', () => {
     expect(body).toContain('Week 1 is setup and not part of the decision.');
   });
 
+  it('a cross-model thread does not count toward the posted findings of the week', () => {
+    const posted = { posted: '2026-11-10T09:00:00Z', severity: 'Important', outcome: 'fixed' };
+    const d = base({
+      prs: [pr(1, 'treated', '2026-11-10T08:00:00Z', null, { findings: [posted, { ...posted, reviewer: 'cross-model', outcome: 'dismissed' }] })],
+      runs: [run(1, 'treated', '2026-11-10T08:30:00Z')],
+    });
+    const { body } = weeklyIssue(d, at('2026-11-16T06:05:00Z'));
+    expect(body).toContain('| Important findings posted | 1 |');
+    expect(body).toContain('| Posted findings fixed / dismissed / open | 1 / 0 / 0 |');
+  });
+
   it('hides the median time to merge below minCell', () => {
     const d = base({ prs: [pr(1, 'treated', '2026-11-10T08:00:00Z', '2026-11-10T10:00:00Z')] });
     expect(weeklyIssue(d, at('2026-11-16T06:05:00Z')).body).toContain('| Reviewed | 1 | fewer than 5 |');

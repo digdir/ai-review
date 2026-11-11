@@ -45,6 +45,12 @@ Operations shows each run with the outcome of every step and its cost. The dashb
 | Failed        | The run stopped before the findings were sealed, often a missing key or the Azure login | Check `SECURITY_SWEEP_PUBLIC_KEYS` in genki's variables. A run that fails at the key check spends nothing      |
 | No run record | The run never sealed, or its artifact expired before the dashboard read it              | The run's cost is then only in the Azure figure                                                                |
 
+## The cross-model review
+
+On security-sensitive pull requests, a second reviewer from another model family runs after the review as the `cross-model` job in `review.yml`. Claude writes and reviews most of genki, so a model from another family looks for blind spots the two share. It posts its findings as review threads in the same format, each marked with `<!-- cross-model-review -->` and a line that names the model. It skips a finding the main review already posted. In the silent group it records its findings and posts nothing.
+
+The dashboard keeps it apart. Its threads never count toward the main review's fix rate, dismissed rate, precision, the findings that the checks missed or the silent-group figures, and its runs never count as main review runs. Operations shows it in its own section: findings posted, fixed, dismissed, duplicates skipped, tokens and cost. Each run uploads `cross-review-run-<pr>-<run>-<attempt>` with `cross-review-run.json`; the collector reads only that file from the archive in memory and keeps counts, not titles. It uses the review's Foundry resource, so its cost is part of the Azure cost of the resource group, but not of the cost per reviewed pull request. While the run record has no `cost_usd`, the section shows the token counts and the cost is only in the Azure figure.
+
 ## When the dashboard is stale or down
 
 - **Numbers are old.** The dashboard rebuilds every twenty minutes on weekdays, 05 to 17 UTC, and every hour otherwise. Run the `dashboard` workflow by hand to rebuild now.

@@ -1,3 +1,5 @@
+import { isMain } from './pulls.mjs';
+
 const DAY = 864e5;
 const WEEK = 7 * DAY;
 const SEVERITIES = ['Important', 'Nit', 'Pre-existing'];
@@ -37,7 +39,7 @@ export function weeklyIssue(data, now) {
 
   const reviews = data.runs.filter((r) => (r.job ?? 'review') === 'review' && inWeek(r.started_at));
   const prsOf = (arm) => new Set(reviews.filter((r) => (arm === 'shadow' ? r.arm === 'shadow' : r.arm !== 'shadow')).map((r) => r.pr_number)).size;
-  const posted = data.prs.flatMap((p) => (p.arm === 'shadow' ? [] : p.findings)).filter((f) => inWeek(f.posted));
+  const posted = data.prs.flatMap((p) => (p.arm === 'shadow' ? [] : p.findings)).filter((f) => isMain(f) && inWeek(f.posted));
   const silentFindings = reviews.filter((r) => r.arm === 'shadow').reduce((s, r) => s + (Number(r.findings) || 0), 0);
   const count = (pred) => posted.filter(pred).length;
   const merged = data.prs.filter((p) => !p.bot && p.merged && inWeek(p.merged));

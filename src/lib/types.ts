@@ -2,8 +2,10 @@ export type Severity = 'Important' | 'Nit' | 'Pre-existing' | (string & {});
 export type Outcome = 'fixed' | 'resolved' | 'outdated' | 'dismissed' | 'discussed' | 'open' | (string & {});
 export type Arm = 'treated' | 'shadow' | null;
 export type AuthorKind = 'agent' | 'human_ai' | 'unknown' | null;
+export type Reviewer = 'main' | 'cross-model';
 
 export interface Finding {
+  reviewer?: Reviewer;
   posted: string;
   severity: Severity;
   category?: string | null;
@@ -106,6 +108,21 @@ export interface SweepRun {
   model?: string | null;
 }
 
+export interface CrossRun {
+  run_id: string;
+  pr_number: number | null;
+  arm: 'treated' | 'shadow';
+  started_at: string;
+  completed: boolean;
+  stopped_at_budget: boolean;
+  model: string | null;
+  cost_usd: number | null;
+  tokens: { input: number | null; output: number | null; cache_read: number | null };
+  returned: number | null;
+  duplicates: number;
+  posted: number;
+}
+
 export interface Change {
   date: string;
   kind: 'rule' | 'model' | 'procedure' | 'workflow' | 'setup' | 'protocol';
@@ -161,6 +178,7 @@ export interface Data {
   codeql?: CodeqlAlert[];
   azure: AzureDay[];
   sweeps?: SweepRun[] | null;
+  cross?: CrossRun[];
   grading?: Grading | null;
   pulse?: Pulse[] | null;
   changes?: Change[] | null;

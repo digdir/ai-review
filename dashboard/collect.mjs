@@ -3,7 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { autoChanges, changeProblems, mergeChanges } from './changes.mjs';
-import { authorHash, finding, fromRecord, isBot, recordedFindings, REVIEW_BOT, touchesSensitive } from './pulls.mjs';
+import { artifactKind, authorHash, CROSS_FILE, finding, fromCrossRecord, fromRecord, isBot, recordedFindings, REVIEW_BOT, touchesSensitive } from './pulls.mjs';
 import { loadRepos } from './repos.mjs';
 import { fromSnapshot } from './snapshot.mjs';
 import { fromSweepRecord, parseOutcomes, RUN_FILE, sweepRun, zipEntry } from './sweeps.mjs';
@@ -61,9 +61,12 @@ function humanThread(t, prAuthor) {
 let categories = new Map();
 let recorded = new Map();
 
-function runRecords() {
-  const arts = sh('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts?per_page=100`, '--paginate', '--jq', '.artifacts[]|select(.name|startswith("review-run-"))|select(.expired|not)|{id,name}|tojson'])
-    .split('\n').filter(Boolean).map((l) => JSON.parse(l));
+function artifacts() {
+  return sh('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts?per_page=100`, '--paginate', '--jq', '.artifacts[]|select(.expired|not)|{id,name}|tojson'])
+    .split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((a) => artifactKind(a.name));
+}
+
+function runRecords(arts) {
   const out = [];
   const raw = [];
   for (const a of arts) {
@@ -85,6 +88,26 @@ function runRecords() {
     }
   }
   recorded = recordedFindings(raw);
+  return out;
+}
+
+function crossRuns(arts) {
+  const out = [];
+  for (const a of arts) {
+    const file = join(CACHE, `cross-${Number(a.id)}.json`);
+    let run = readCache(file);
+    if (run === null && !existsSync(file)) {
+      try {
+        const zip = execFileSync('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts/${Number(a.id)}/zip`], { maxBuffer: 64 * 1024 * 1024 });
+        const json = zipEntry(zip, CROSS_FILE);
+        run = json ? fromCrossRecord(JSON.parse(json.toString('utf8'))) : null;
+        writeFileSync(file, JSON.stringify(run));
+      } catch (e) {
+        console.warn(`cross-model run ${a.name} unreadable:`, String(e.message ?? e).split('\n')[0].slice(0, 200));
+      }
+    }
+    if (run) out.push(run);
+  }
   return out;
 }
 
@@ -214,7 +237,8 @@ function azureCost() {
 }
 
 function collect() {
-  const records = runRecords();
+  const arts = artifacts();
+  const records = runRecords(arts.filter((a) => artifactKind(a.name) === 'main'));
   const runs = [...records, ...legacyRuns(new Set(records.map((r) => String(r.run_id))))];
   const armByPr = new Map();
   for (const r of [...runs].sort((a, b) => a.started_at.localeCompare(b.started_at))) {
@@ -274,6 +298,7 @@ function collect() {
     codeql: snap?.codeql,
     azure: azureCost(),
     sweeps: sweeps(),
+    cross: crossRuns(arts.filter((a) => artifactKind(a.name) === 'cross-model')),
     grading: optional('grading.json'),
     pulse: optional('pulse.json'),
     changes: mergeChanges(autoChanges(prs, { repo: CONFIG.repo, start: CONFIG.start, paths: CONFIG.changePaths }), manual),

@@ -9,11 +9,18 @@ const DISMISSED = /\b(not fixing|won't fix|wontfix|false positive|this is wrong|
 const FIXED_REPLY = /^Fixed in `?([0-9a-f]{7,40})/;
 const TITLE = /^\*\*(?:Important|Nit|Pre-existing)\*\*:?\s*(.*)/;
 const RECORD_SEVERITY = { important: 'Important', nit: 'Nit', preexisting: 'Pre-existing' };
+export const CROSS_MARKER = '<!-- cross-model-review -->';
+export const CROSS_FILE = 'cross-review-run.json';
+
+export const reviewerOf = (body) => (String(body ?? '').includes(CROSS_MARKER) ? 'cross-model' : 'main');
+export const isMain = (f) => (f.reviewer ?? 'main') === 'main';
+
+export const artifactKind = (name) => (name.startsWith('review-run-') ? 'main' : name.startsWith('cross-review-run-') ? 'cross-model' : null);
 
 /** SHA-256 of the lowercased login, so the dashboard can match a username typed in the browser without storing any login. */
 export const authorHash = (login) => (login ? createHash('sha256').update(String(login).trim().toLowerCase()).digest('hex') : null);
 
-/** One review thread as a finding: severity, title (first line only), outcome and when the author first answered. */
+/** One review thread as a finding: reviewer, severity, title (first line only), outcome and when the author first answered. */
 export function finding(t) {
   const [first, ...replies] = t.comments.nodes;
   const sev = SEVERITY.exec(first.body)?.[1];
@@ -33,6 +40,7 @@ export function finding(t) {
             : 'open';
   const answered = [human[0]?.createdAt, followUp?.createdAt].filter(Boolean).sort()[0] ?? null;
   return {
+    reviewer: reviewerOf(first.body),
     posted: first.createdAt,
     severity: sev,
     title: TITLE.exec(first.body)?.[1]?.split('\n')[0]?.trim().slice(0, 200) ?? '',
@@ -51,6 +59,28 @@ export function fromRecord(r) {
   const denials = Array.isArray(r.permission_denials) ? r.permission_denials.length : Number.isFinite(r.permission_denials) ? r.permission_denials : null;
   const { findings, permission_denials: _, ...rest } = r;
   return { ...rest, findings: findings.length, permission_denials: denials, source: 'record' };
+}
+
+const nonNegative = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null);
+
+/** A cross-model run record as counts only, or null when it is not one. */
+export function fromCrossRecord(r) {
+  if (r?.schema !== 'digdir.ai-review.cross-run/v1') return null;
+  const findings = Array.isArray(r.findings) ? r.findings : [];
+  return {
+    run_id: String(r.run_id),
+    pr_number: Number(r.pr_number) || null,
+    arm: r.arm === 'shadow' ? 'shadow' : 'treated',
+    started_at: r.started_at,
+    completed: r.completed === true,
+    stopped_at_budget: r.stopped_at_budget === true,
+    model: typeof r.model === 'string' ? r.model : null,
+    cost_usd: nonNegative(r.cost_usd),
+    tokens: { input: nonNegative(r.tokens?.input), output: nonNegative(r.tokens?.output), cache_read: nonNegative(r.tokens?.cache_read) },
+    returned: nonNegative(r.returned),
+    duplicates: findings.filter((f) => f.duplicate === true).length,
+    posted: findings.filter((f) => f.posted === true).length,
+  };
 }
 
 /** Findings from silent-group run records per pull request, once per path and title, at the first run that found them. */
