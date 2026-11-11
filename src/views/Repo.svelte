@@ -5,7 +5,7 @@
   import Findings from '../screens/Findings.svelte';
   import Operations from '../screens/Operations.svelte';
   import Overview from '../screens/Overview.svelte';
-  import Repository from '../screens/Repository.svelte';
+  import PullRequests from '../screens/PullRequests.svelte';
 
   let {
     data,
@@ -15,8 +15,6 @@
     author,
     username,
     onusername,
-    showStart,
-    ondismiss,
   }: {
     data: Data;
     screen: Screen;
@@ -25,8 +23,6 @@
     author: string | null;
     username: string;
     onusername: (v: string) => void;
-    showStart: boolean;
-    ondismiss: () => void;
   } = $props();
 
   const config = $derived(makeConfig(data));
@@ -34,9 +30,9 @@
 </script>
 
 {#if screen === 'overview'}
-  <Overview {data} {m} {config} {collected} {ok} {showStart} {ondismiss} />
-{:else if screen === 'repository'}
-  <Repository {data} {m} {author} {username} {onusername} />
+  <Overview {data} {m} {config} />
+{:else if screen === 'pull-requests'}
+  <PullRequests {data} {m} {author} {username} {onusername} />
 {:else if screen === 'findings'}
   <Findings {data} {m} {author} {username} {onusername} />
 {:else}

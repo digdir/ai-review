@@ -145,6 +145,15 @@ describe('decision period and all weeks', () => {
   });
 });
 
+describe('the weekly trend', () => {
+  it('gives the fixed and dismissed share of the findings posted in each week', () => {
+    const m = compute(reviewed(4, (i) => (i < 2 ? 'fixed' : i === 2 ? 'dismissed' : 'open')), DEFAULTS);
+    const w3 = m.repo.perWeek.find((w) => w.week === 3)!;
+    expect(w3).toMatchObject({ posted: 4, fixed: { k: 2, n: 4 }, dismissed: { k: 1, n: 4 } });
+    expect(m.repo.perWeek.find((w) => w.week === 1)).toMatchObject({ posted: 0, setup: true });
+  });
+});
+
 describe('the decision rule today', () => {
   const c = (key: Criterion['key'], s: Criterion['status']): Criterion => ({ key, status: s, value: null, text: '', sub: '', n: 0, fill: null, tick: 0, tickLabel: '' });
   const all = (over: Partial<Record<Criterion['key'], Criterion['status']>>) =>

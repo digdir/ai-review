@@ -26,13 +26,14 @@ describe('routes', () => {
   it('sends the old tab ids to the screen that took them over', () => {
     expect(parseRoute('#/digdir/genki/cost', repos).canonical).toBe('/digdir/genki/operations');
     expect(parseRoute('#/digdir/genki/runs', repos).canonical).toBe('/digdir/genki/operations');
-    expect(parseRoute('#/digdir/genki/quality', repos).canonical).toBe('/digdir/genki/repository');
+    expect(parseRoute('#/digdir/genki/quality', repos).canonical).toBe('/digdir/genki/findings');
+    expect(parseRoute('#/digdir/genki/repository', repos).canonical).toBe('/digdir/genki/pull-requests');
     expect(parseRoute('#/digdir/genki/security', repos).canonical).toBe('/digdir/genki/findings');
     expect(parseRoute('#/digdir/genki/experiment', repos).canonical).toBe('/digdir/genki/overview#criteria');
   });
 
   it('keeps links from before the overview of all repositories working', () => {
-    expect(parseRoute('#/kvalitet', repos).canonical).toBe('/digdir/genki/repository');
+    expect(parseRoute('#/kvalitet', repos).canonical).toBe('/digdir/genki/findings');
     expect(parseRoute('#/digdir/genki/kostnad', repos).canonical).toBe('/digdir/genki/operations');
   });
 
