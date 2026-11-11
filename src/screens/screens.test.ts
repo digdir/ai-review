@@ -16,7 +16,7 @@ import PullRequests from './PullRequests.svelte';
 
 const states: SampleState[] = ['setup', 'measuring', 'after'];
 const dates = { start: 'Mon 9 Nov', measure: 'Mon 23 Nov', decision: 'Mon 21 Dec' };
-const text = (html: string) => html.replace(/<!--[^]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+const text = (html: string) => html.replace(/<!--[^]*?-->/g, '').replace(/<[^>]+>/g, ' ').replace(/[<>]/g, ' ').replace(/\s+/g, ' ');
 
 const pages = (state: SampleState) => {
   const data = sample(state);
