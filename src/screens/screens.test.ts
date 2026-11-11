@@ -95,6 +95,36 @@ describe('the primary question of each page', () => {
   });
 });
 
+describe('the security sweep on operations', () => {
+  it('says no sweep has run yet before the first Monday', () => {
+    const body = text(pages('setup').Operations());
+    expect(body).toMatch(/Security sweep .*No security sweep has run yet\./);
+  });
+
+  it('lists each run with the outcome of every step, its cost and a link to the run', () => {
+    const body = pages('measuring').Operations();
+    const table = body.slice(body.indexOf('id="security-sweep"'), body.indexOf('id="checklist"'));
+    expect(text(table)).toMatch(/Started Outcome Tenancy Rights Secrets Coordinate Cost Log/);
+    expect(text(table)).toMatch(/Incomplete .*Failed/);
+    expect(text(table)).toMatch(/USD 16\.40/);
+    expect(text(table)).toMatch(/No run record/);
+    expect(table).toContain('href="https://github.com/digdir/genki/actions/runs/9000000000"');
+    expect(text(body)).toMatch(/Security sweep NOK [\d,]+ in \d runs? \(USD [\d.]+\), part of the Azure cost/);
+  });
+
+  it('hides the section for a repository without a sweep', () => {
+    const data = { ...sample('measuring'), sweeps: undefined };
+    const body = render(Operations, { props: { data, m: compute(data, DEFAULTS), config: DEFAULTS, collected: data.generatedAt, ok: true } }).body;
+    expect(body).not.toContain('id="security-sweep"');
+  });
+
+  it('says the runs are unknown when they could not be read', () => {
+    const data = { ...sample('measuring'), sweeps: null };
+    const body = render(Operations, { props: { data, m: compute(data, DEFAULTS), config: DEFAULTS, collected: data.generatedAt, ok: true } }).body;
+    expect(text(body)).toMatch(/Unknown: the security sweep runs could not be read/);
+  });
+});
+
 describe('the overview answer by phase', () => {
   it('says nothing is decided in the setup weeks', () => {
     const body = text(pages('setup').Overview());

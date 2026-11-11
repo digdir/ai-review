@@ -1,7 +1,7 @@
 import { day, fmt, hours, nok, pct, plural, signed, usd, weekday } from './format';
 import { CATS, CAT, CRITERIA, DECISION, SETUP_ITEMS, type CriterionKey } from './labels';
 import { DAY, WEEK, median, monday, quant, rate, sum, type Rate } from './stats';
-import type { Change, Check, Data, Decision, ExperimentConfig, Finding, Phase, Pr, Run, Severity, Status } from './types';
+import type { Change, Check, Data, Decision, ExperimentConfig, Finding, Phase, Pr, Run, Severity, Status, SweepRun } from './types';
 
 export const DEFAULTS: ExperimentConfig = {
   weeks: 6,
@@ -180,7 +180,10 @@ export function compute(D: Data, C: ExperimentConfig) {
   const monthEnd = Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth() + 1, 1);
   const azureMonth = D.azure.filter((a) => ms(a.date) >= monthStart && ms(a.date) < monthEnd);
   const haveAzure = azureMonth.length > 0;
-  const monthNok = haveAzure ? sum(azureMonth.map((a) => a.nok)) : runCost(D.runs.filter((x) => ms(x.started_at) >= monthStart));
+  const sweepRuns = [...(D.sweeps ?? [])].sort((a, b) => b.started_at.localeCompare(a.started_at));
+  const sweepMonth = sweepRuns.filter((x) => ms(x.started_at) >= monthStart && ms(x.started_at) < monthEnd);
+  const sweepMonthNok = sum(sweepMonth.map((x) => x.cost_usd)) * C.usdNok;
+  const monthNok = haveAzure ? sum(azureMonth.map((a) => a.nok)) : runCost(D.runs.filter((x) => ms(x.started_at) >= monthStart)) + sweepMonthNok;
   const elapsed = (now - Math.max(monthStart, startMs)) / DAY;
   const projectedRaw = monthNok + (monthNok / Math.max(1, elapsed)) * Math.max(0, (monthEnd - now) / DAY);
   const projected = elapsed >= READ.costDays ? projectedRaw : null;
@@ -410,6 +413,12 @@ export function compute(D: Data, C: ExperimentConfig) {
       return { from, base: from < startMs, n: codeql.filter((a) => ms(a.created) >= from && ms(a.created) < from + WEEK).length };
     }),
     lastRun,
+    sweep: {
+      known: D.sweeps != null,
+      configured: D.sweeps !== undefined,
+      runs: sweepRuns.map((x) => ({ ...x, state: sweepState(x) })),
+      month: { runs: sweepMonth.length, nok: sweepMonthNok, usd: sum(sweepMonth.map((x) => x.cost_usd)) },
+    },
   };
 
   const setup: CheckItem[] = SETUP_ITEMS.map(([key, name, hint]) => {
@@ -493,6 +502,15 @@ export function compute(D: Data, C: ExperimentConfig) {
     checklist, checkout, ours, rows, posted, onMerged, firstReview, monthNok, projected, daysLeftMonth, haveAzure, lastRun, reviewedSet,
     reviews, since, baseT, reworkBase, mergeChange, vsSilent, precision: precW, important: impW, dismissed: disW,
   };
+}
+
+export function sweepState(x: SweepRun): string {
+  if (x.conclusion === 'running') return 'running';
+  if (x.conclusion === 'cancelled' || x.conclusion === 'skipped' || x.conclusion === 'timed_out') return x.conclusion;
+  if (x.conclusion !== 'success') return 'failed';
+  if (!x.passes) return 'unchecked';
+  const unfinished = Object.entries(x.passes).some(([step, outcome]) => outcome !== 'success' && !(step === 'coordinate' && outcome === 'skipped'));
+  return unfinished ? 'incomplete' : 'completed';
 }
 
 /** Review runs of a head commit that an earlier review of the same pull request already covered. */

@@ -29,9 +29,21 @@ A failed run does not block the pull request. It is recorded and shows on the da
 
 The budget `budget-genki-review` alerts at 80 and 100 percent of NOK 7,500 a month, and when the forecast passes 100.
 
-1. Look at Operations on the dashboard: is it more pull requests, larger pull requests or more `review again`?
+1. Look at Operations on the dashboard: is it more pull requests, larger pull requests, more `review again` or the security sweep?
 2. If the month will go over, in this order: limit `review again`, use a cheaper model for the review, or pause the review by disabling the workflow. Log each as a change.
 3. Tell the approvers if the cap will be passed.
+
+## The security sweep
+
+genki also runs a weekly security sweep, `security-sweep.yml`, on Mondays at 03:17 UTC: three passes over the security-sensitive code (tenancy, rights, secrets) and a coordinate step that confirms their candidates. Each step is capped at about USD 6, so a run costs at most about USD 24. It uses the review's Foundry resource, so its cost is part of the Azure cost of the resource group and counts against the same budget.
+
+Operations shows each run with the outcome of every step and its cost. The dashboard reads only `security-sweep-run.json` from the run's artifact (cost, duration and model). The findings are in `security-sweep.sealed.json` in the same artifact, encrypted to the maintainers' keys. GitHub serves an artifact only as one archive, so the collector downloads it into memory and decompresses only the run record; the sealed file is never written to disk, decompressed or logged. Only the maintainers open it, as genki's `CONTRIBUTING.md` describes.
+
+| What you see  | What it means                                                                           | What to do                                                                                                     |
+| ------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| Incomplete    | A step failed or hit its cap; the report may miss findings                              | Open the Actions log. If the cap was hit, run the sweep again by hand or raise the cap, and log it as a change |
+| Failed        | The run stopped before the findings were sealed, often a missing key or the Azure login | Check `SECURITY_SWEEP_PUBLIC_KEYS` in genki's variables. A run that fails at the key check spends nothing      |
+| No run record | The run never sealed, or its artifact expired before the dashboard read it              | The run's cost is then only in the Azure figure                                                                |
 
 ## When the dashboard is stale or down
 
@@ -61,6 +73,7 @@ All in the lab's Azure subscription and its tenant, resource group `rg-genki-rev
 | Variables `AZURE_REVIEW_CLIENT_ID`, `_TENANT_ID`, `_SUBSCRIPTION_ID`, `_FOUNDRY_RESOURCE` | The review identity and the Foundry resource                         |
 | Variable `REVIEW_SHADOW_PERCENT`                                                          | 25. Never change it during the experiment                            |
 | Workflows `review.yml`, `review-snapshot.yml`                                             | The review, and the daily code scanning snapshot                     |
+| Workflow `security-sweep.yml`, variable `SECURITY_SWEEP_PUBLIC_KEYS`                      | The weekly security sweep, and the keys its findings are sealed to   |
 | Labels `review again`, `escaped`                                                          | Run the review once more; mark a fix for a problem the review missed |
 | `REVIEW.md`, `.github/review-security.md`, `.claude/skills/review-change`                 | The rules and the procedure                                          |
 

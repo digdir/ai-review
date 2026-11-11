@@ -1,5 +1,5 @@
 import { DAY, WEEK } from './stats';
-import type { AzureDay, Change, CiRun, CodeqlAlert, Data, Grading, Pr, Run } from './types';
+import type { AzureDay, Change, CiRun, CodeqlAlert, Data, Grading, Pr, Run, SweepRun } from './types';
 
 export type SampleState = 'setup' | 'measuring' | 'after';
 
@@ -190,6 +190,20 @@ export function sample(state: SampleState = 'measuring'): Data {
     }),
   );
   const followup = Array.from({ length: gradedWeeks.length * 10 }, () => ({ correct: rnd() < 0.88 }));
+  const sweeps: SweepRun[] = [];
+  for (let t = Date.parse('2026-11-16T03:17:00Z'), i = 0; t < now; t += WEEK, i++) {
+    const kind = i % 4;
+    const ok = (coordinate = 'success') => ({ tenancy: 'success', rights: 'success', secrets: 'success', coordinate });
+    sweeps.push({
+      run_id: String(9e9 + i),
+      started_at: new Date(t).toISOString(),
+      conclusion: kind === 3 ? 'failure' : 'success',
+      passes: kind === 0 ? ok() : kind === 1 ? { ...ok(), rights: 'failure' } : kind === 2 ? ok('skipped') : null,
+      cost_usd: kind === 3 ? null : [16.4, 11.2, 9.8][kind],
+      duration_s: kind === 3 ? null : 2400 + i * 60,
+      model: kind === 3 ? null : 'claude-opus-5-5',
+    });
+  }
   const today = new Date(now).toISOString().slice(0, 10);
   return {
     schema: 'digdir.ai-review.dashboard/v1',
@@ -201,6 +215,7 @@ export function sample(state: SampleState = 'measuring'): Data {
     runs,
     ci,
     azure,
+    sweeps,
     grading: grades.length ? { grades, followup, agreement: 0.66 } : null,
     changes: CHANGES.filter((c) => c.date <= today),
     pulse: [

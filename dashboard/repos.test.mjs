@@ -30,6 +30,11 @@ describe('repository settings', () => {
     ]);
   });
 
+  it('takes an optional security sweep workflow, which must be a workflow file name', () => {
+    expect(problems({ ...good, workflows: { ...good.workflows, sweep: 'security-sweep.yml' } }, 'digdir/example.json')).toEqual([]);
+    expect(problems({ ...good, workflows: { ...good.workflows, sweep: '../x.sh' } }, 'digdir/example.json')).toEqual(['workflows.sweep must be a workflow file name']);
+  });
+
   it('loads every settings file in the repository, genki included', () => {
     const repos = loadRepos(join(import.meta.dirname, '..', 'repos'));
     expect(repos.map((r) => r.repo)).toContain('digdir/genki');

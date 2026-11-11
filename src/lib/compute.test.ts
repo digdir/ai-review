@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { hashLogin } from './author';
-import { DEFAULTS, compute, emptyRereviews, filterFindings, ruleToday, timing, type Criterion } from './compute';
+import { DEFAULTS, compute, emptyRereviews, filterFindings, ruleToday, sweepState, timing, type Criterion } from './compute';
 import { sample } from './sample';
-import type { Change, Data, Finding, Pr, Run } from './types';
+import type { Change, Data, Finding, Pr, Run, SweepRun } from './types';
 
 const START = '2026-11-09';
 const iso = (s: string) => new Date(s).toISOString();
@@ -307,5 +307,47 @@ describe('sample data', () => {
     expect(m.repo.escaped.length).toBeGreaterThan(0);
     expect(m.ops.emptyRereviews).toBeGreaterThan(0);
     expect(m.rule).not.toBeNull();
+  });
+});
+
+describe('security sweep', () => {
+  const passes = { tenancy: 'success', rights: 'success', secrets: 'success', coordinate: 'success' };
+  const sweep = (extra: Partial<SweepRun> = {}): SweepRun => ({ run_id: 's1', started_at: iso('2026-12-07T03:17:00Z'), conclusion: 'success', passes, cost_usd: 20, ...extra });
+  const d = (sweeps: SweepRun[] | null | undefined, azure: Data['azure'] = []) => ({ ...reviewed(1, () => 'fixed', { day: '2026-12-02', now: '2026-12-08T12:00:00Z' }), sweeps, azure });
+
+  it('adds the sweep to the month from the run records until Azure cost arrives', () => {
+    const m = compute(d([sweep(), sweep({ run_id: 's0', started_at: iso('2026-11-30T03:17:00Z') })]), DEFAULTS);
+    expect(m.ops.sweep.month).toEqual({ runs: 1, usd: 20, nok: 20 * DEFAULTS.usdNok });
+    expect(m.monthNok).toBeCloseTo(21 * DEFAULTS.usdNok);
+  });
+
+  it('does not add the sweep to the Azure cost, which already includes it', () => {
+    expect(compute(d([sweep()], [{ date: '2026-12-01', nok: 300 }]), DEFAULTS).monthNok).toBe(300);
+  });
+
+  it('leaves the sweep out of the cost per reviewed pull request', () => {
+    expect(compute(d([sweep()]), DEFAULTS).ops.cost.perPr).toBeCloseTo(DEFAULTS.usdNok);
+  });
+
+  it('tells a repository without a sweep from one whose runs could not be read and one with no runs yet', () => {
+    expect(compute(d(undefined), DEFAULTS).ops.sweep).toMatchObject({ configured: false, known: false });
+    expect(compute(d(null), DEFAULTS).ops.sweep).toMatchObject({ configured: true, known: false });
+    expect(compute(d([]), DEFAULTS).ops.sweep).toMatchObject({ configured: true, known: true, runs: [] });
+  });
+
+  it('calls a run incomplete when a pass failed, even though the workflow succeeded', () => {
+    expect(sweepState(sweep())).toBe('completed');
+    expect(sweepState(sweep({ passes: { ...passes, coordinate: 'skipped' } }))).toBe('completed');
+    expect(sweepState(sweep({ passes: { ...passes, rights: 'failure' } }))).toBe('incomplete');
+    expect(sweepState(sweep({ passes: { ...passes, tenancy: 'skipped' } }))).toBe('incomplete');
+  });
+
+  it('reads failed, cancelled, skipped and running runs from the workflow', () => {
+    expect(sweepState(sweep({ conclusion: 'failure', passes: null, cost_usd: null }))).toBe('failed');
+    expect(sweepState(sweep({ conclusion: 'startup_failure', passes: null }))).toBe('failed');
+    expect(sweepState(sweep({ conclusion: 'cancelled' }))).toBe('cancelled');
+    expect(sweepState(sweep({ conclusion: 'skipped', passes: null }))).toBe('skipped');
+    expect(sweepState(sweep({ conclusion: 'running', passes: null }))).toBe('running');
+    expect(sweepState(sweep({ passes: null }))).toBe('unchecked');
   });
 });

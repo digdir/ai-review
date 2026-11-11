@@ -94,6 +94,18 @@ export interface AzureDay {
   currency?: string;
 }
 
+export type SweepPass = 'tenancy' | 'rights' | 'secrets' | 'coordinate';
+
+export interface SweepRun {
+  run_id: string;
+  started_at: string;
+  conclusion: string;
+  passes: Record<SweepPass, string | null> | null;
+  cost_usd: number | null;
+  duration_s?: number | null;
+  model?: string | null;
+}
+
 export interface Change {
   date: string;
   kind: 'rule' | 'model' | 'procedure' | 'workflow' | 'setup' | 'protocol';
@@ -148,6 +160,7 @@ export interface Data {
   ci: CiRun[];
   codeql?: CodeqlAlert[];
   azure: AzureDay[];
+  sweeps?: SweepRun[] | null;
   grading?: Grading | null;
   pulse?: Pulse[] | null;
   changes?: Change[] | null;
