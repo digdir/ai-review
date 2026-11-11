@@ -2,6 +2,7 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { readCache } from './cache.mjs';
 import { autoChanges, changeProblems, mergeChanges } from './changes.mjs';
 import { artifactKind, authorHash, CROSS_FILE, finding, fromCrossRecord, fromRecord, isBot, recordedFindings, REVIEW_BOT, touchesSensitive } from './pulls.mjs';
 import { loadRepos } from './repos.mjs';
@@ -96,7 +97,7 @@ function crossRuns(arts) {
   for (const a of arts) {
     const file = join(CACHE, `cross-${Number(a.id)}.json`);
     let run = readCache(file);
-    if (run === null && !existsSync(file)) {
+    if (run === undefined) {
       try {
         const zip = execFileSync('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts/${Number(a.id)}/zip`], { maxBuffer: 64 * 1024 * 1024 });
         const json = zipEntry(zip, CROSS_FILE);
@@ -184,15 +185,6 @@ function sweepDetails(id) {
   const jobs = gh('api', `repos/${CONFIG.repo}/actions/runs/${id}/jobs`).jobs ?? [];
   const passes = jobs.length === 1 ? parseOutcomes(sh('gh', ['api', `repos/${CONFIG.repo}/actions/jobs/${Number(jobs[0].id)}/logs`])) : null;
   return { record, passes };
-}
-
-function readCache(file) {
-  try {
-    return JSON.parse(readFileSync(file, 'utf8'));
-  } catch (e) {
-    if (e.code === 'ENOENT') return null;
-    throw e;
-  }
 }
 
 function sweeps() {
