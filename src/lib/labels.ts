@@ -16,6 +16,26 @@ export const OUT: Record<string, [string, string]> = {
   recorded: ['Recorded, not posted', 'A silent-group finding that was never posted'],
 };
 
+export const SWEEP_PASSES = [
+  ['tenancy', 'Tenancy'],
+  ['rights', 'Rights'],
+  ['secrets', 'Secrets'],
+  ['coordinate', 'Coordinate'],
+] as const;
+
+export const SWEEP: Record<string, [string, string]> = {
+  completed: ['Completed', 'Every pass finished'],
+  unchecked: ['Finished', 'The run finished, but the outcome of each pass could not be read'],
+  incomplete: ['Incomplete', 'A pass did not finish, so the sealed report may miss findings'],
+  success: ['Finished', 'The step finished'],
+  failure: ['Failed', 'The step failed or hit its turn or cost cap'],
+  failed: ['Failed', 'The run failed before or while sealing the findings'],
+  timed_out: ['Timed out', 'The run passed its time limit'],
+  cancelled: ['Cancelled', 'The run or step was cancelled'],
+  skipped: ['Skipped', 'Not run. Coordinate is skipped when the passes find no candidates'],
+  running: ['Running', 'Not finished yet'],
+};
+
 export const STATUS: Record<Status, string> = { met: 'Met', notmet: 'Not met', early: 'Too early' };
 export const CHECK: Record<Check, string> = { done: 'Done', todo: 'To do', later: 'Later' };
 export const DECISION: Record<Decision, string> = { keep: 'Keep', adjust: 'Adjust', stop: 'Stop' };
@@ -109,7 +129,7 @@ export const CRITERIA: CriterionDef[] = [
     name: 'Cost',
     rule: 'At most NOK 7,500 a month',
     read: 'From day 5',
-    means: 'Azure cost of the review resource group this month, projected to the end of the month from the daily average.',
+    means: 'Azure cost of the review resource group this month, projected to the end of the month from the daily average. It includes the weekly security sweep, which uses the same Foundry resource.',
     source: 'Azure Cost Management, about a day behind. Until it arrives, the run records in USD.',
     doc: ['runbook', 'when-the-budget-alerts'],
   },

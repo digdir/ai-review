@@ -95,7 +95,7 @@ flowchart LR
 
 1. **Review.** `review.yml` in the repository runs when a pull request opens. One in four is in the silent group: reviewed and recorded, but nothing is posted. After each push a cheaper model checks the open findings and resolves the fixed ones.
 2. **Record.** Every run uploads a run record. A daily `review-snapshot` workflow records the CodeQL alerts, which this repository cannot read with its own token.
-3. **Collect.** Every twenty minutes on weekdays and every hour otherwise, `dashboard/collect.mjs` reads pull requests, threads, run records, CI, the snapshot and Azure cost for each repository in `repos/`, plus the hand-entered inputs. Changes to the review setup are found in merged pull requests and joined with the change log. A repository that fails is marked on the overview and does not stop the others. It stores no logins, only a hash of each pull request author's login for the username filter.
+3. **Collect.** Every twenty minutes on weekdays and every hour otherwise, `dashboard/collect.mjs` reads pull requests, threads, run records, CI, the snapshot, the security sweep runs and Azure cost for each repository in `repos/`, plus the hand-entered inputs. Changes to the review setup are found in merged pull requests and joined with the change log. A repository that fails is marked on the overview and does not stop the others. It stores no logins, only a hash of each pull request author's login for the username filter.
 4. **Build.** Vite builds the dashboard with the data bundled in, and the workflow deploys the static site to Azure Static Web Apps. Only accounts in the lab's tenant can open it.
 5. **Routine.** Each Monday `weekly.yml` opens an issue with last week's numbers and the checklist from the [runbook](docs/runbook.md#every-monday).
 6. **Decide.** After week 6 the criteria in [the protocol](docs/experiment.md) decide: keep, adjust or stop.
@@ -107,13 +107,13 @@ flowchart LR
   "repo": "digdir/genki",
   "baselineFrom": "2026-10-19",
   "start": "2026-11-09",
-  "workflows": { "review": "review.yml", "ci": "ci.yml" },
+  "workflows": { "review": "review.yml", "ci": "ci.yml", "sweep": "security-sweep.yml" },
   "azure": { "subscription": "…", "resourceGroup": "…" },
   "experiment": { "weeks": 6, "budgetNok": 7500, "minCell": 5 }
 }
 ```
 
-`azure` is optional; without it, cost is taken from the run records. A repository without `experiment` gets the plain numbers without groups and criteria. The repository must be public, since the workflow reads it with its own token.
+`azure` is optional; without it, cost is taken from the run records. `workflows.sweep` is optional too: the repository's weekly security sweep, shown under Operations with its cost. A repository without `experiment` gets the plain numbers without groups and criteria. The repository must be public, since the workflow reads it with its own token.
 
 ## Working on it
 

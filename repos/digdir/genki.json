@@ -2,7 +2,7 @@
   "repo": "digdir/genki",
   "baselineFrom": "2026-10-19",
   "start": "2026-11-09",
-  "workflows": { "review": "review.yml", "ci": "ci.yml" },
+  "workflows": { "review": "review.yml", "ci": "ci.yml", "sweep": "security-sweep.yml" },
   "azure": { "subscription": "b54aa593-19d9-4bf4-8ff8-c30bc8bb3d45", "resourceGroup": "rg-genki-review-swc" },
   "experiment": {
     "weeks": 6,

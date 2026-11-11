@@ -4,7 +4,7 @@
   import HBars from '../lib/charts/HBars.svelte';
   import type { Metrics } from '../lib/compute';
   import { day, fmt, minutes, nok, pct, stamp, usd, weekday } from '../lib/format';
-  import { JOB } from '../lib/labels';
+  import { JOB, SWEEP_PASSES } from '../lib/labels';
   import type { Data, ExperimentConfig } from '../lib/types';
   import Definitions, { type Definition } from '../lib/ui/Definitions.svelte';
   import EmptyState from '../lib/ui/EmptyState.svelte';
@@ -17,6 +17,7 @@
   let { data, m, config, collected, ok }: { data: Data; m: Metrics; config: ExperimentConfig; collected: string; ok: boolean } = $props();
 
   const o = $derived(m.ops);
+  const sw = $derived(m.ops.sweep);
   const r = $derived(m.repo);
   const repo = $derived(data.config.repo);
   const since = $derived(weekday(m.T.startMs));
@@ -47,13 +48,19 @@
     },
     {
       term: 'Cost',
-      means: 'Azure cost of the review this month, projected to the end of the month from the daily average. The budget alerts at 80 and 100 percent.',
-      source: 'Azure Cost Management, about a day behind; the run records in USD until it arrives.',
+      means: 'Azure cost of the review resource group this month, projected to the end of the month from the daily average. It counts the review, the follow-ups and the weekly security sweep, which uses the same Foundry resource. The budget alerts at 80 and 100 percent.',
+      source: 'Azure Cost Management, about a day behind. Until it arrives, the run records of the review and the security sweep in USD.',
       doc: ['runbook', 'when-the-budget-alerts'],
     },
     {
+      term: 'Security sweep',
+      means: 'The weekly sweep of the security-sensitive code: three passes (tenancy, rights, secrets) and a coordinate step that confirms their candidates, each step capped at about USD 6. Coordinate is skipped when the passes find no candidates. Incomplete means a step failed or hit its cap, so the sealed report may miss findings, and the cost may be low because a step that stops early reports none. The cost counts in the month\'s cost, not in the cost per pull request. The findings are sealed for the maintainers; the dashboard never reads them.',
+      source: 'The run list of the sweep workflow, the outcome of each step from the run log, and cost and duration from security-sweep-run.json in the run artifact. The artifact is kept 14 days; the collector keeps its own copy.',
+      doc: ['runbook', 'the-security-sweep'],
+    },
+    {
       term: 'Per reviewed pull request and per confirmed fix',
-      means: 'All review and follow-up runs divided by reviewed pull requests, or by findings answered fixed. Anthropic charges USD 15 to 25 per review; GitHub Copilot about USD 0.52.',
+      means: 'All review and follow-up runs divided by reviewed pull requests, or by findings answered fixed. The security sweep is not included. Anthropic charges USD 15 to 25 per review; GitHub Copilot about USD 0.52.',
       source: 'Run records in USD; Azure as the check.',
       doc: ['runbook', 'when-the-budget-alerts'],
     },
@@ -156,8 +163,52 @@
       <dd>{nok(o.cost.perFix)}{#if o.cost.perImportantFix}, per Important fix {nok(o.cost.perImportantFix)}{/if}</dd>
       <dt>Cache hit share</dt>
       <dd>{pct(o.cost.cacheHit)} of input tokens</dd>
+      {#if sw.configured}
+        <dt>Security sweep</dt>
+        <dd>{nok(sw.month.nok)} in {fmt(sw.month.runs)} {sw.month.runs === 1 ? 'run' : 'runs'} ({usd(sw.month.usd)}), {m.haveAzure ? 'part of the Azure cost' : 'added to the run records'}</dd>
+      {/if}
     </dl>
   </Section>
+
+  {#if sw.configured}
+    <Section id="security-sweep" title="Security sweep" description="Weekly runs of the security sweep, with the outcome of each step. The findings are sealed for the maintainers and not shown here." doc={['runbook', 'the-security-sweep']}>
+      {#if !sw.known}
+        <EmptyState>Unknown: the security sweep runs could not be read in the last collection.</EmptyState>
+      {:else if sw.runs.length}
+        <TableRegion label="Security sweep runs">
+          <table class="ds-table stacked" data-size="sm">
+            <thead>
+              <tr>
+                <th scope="col">Started</th>
+                <th scope="col">Outcome</th>
+                {#each SWEEP_PASSES as [key, label] (key)}<th scope="col">{label}</th>{/each}
+                <th scope="col" class="n">Cost</th>
+                <th scope="col">Log</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each sw.runs.slice(0, 12) as x (x.run_id)}
+                <tr>
+                  <td class="lead nowrap">{stamp(x.started_at)}</td>
+                  <td data-l="Outcome"><StatusTag status={x.state} /></td>
+                  {#each SWEEP_PASSES as [key, label] (key)}
+                    <td data-l={label}>{#if x.passes?.[key]}<StatusTag status={x.passes[key]} />{:else}–{/if}</td>
+                  {/each}
+                  <td data-l="Cost" class="n">
+                    {usd(x.cost_usd)}
+                    {#if x.cost_usd == null && x.state !== 'running'}<span class="sub">No run record</span>{:else if x.cost_usd != null && x.state === 'incomplete'}<span class="sub">May be low</span>{/if}
+                  </td>
+                  <td data-l="Log"><a class="ds-link" href="https://github.com/{repo}/actions/runs/{x.run_id}">Actions log</a></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </TableRegion>
+      {:else}
+        <EmptyState>No security sweep has run yet. Each run shows here once it starts.</EmptyState>
+      {/if}
+    </Section>
+  {/if}
 
   <div class="columns">
     <Section id="checklist" title="This week's checklist" doc={['runbook', 'every-monday']}>

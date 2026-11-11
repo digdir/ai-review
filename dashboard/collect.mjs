@@ -6,6 +6,7 @@ import { autoChanges, changeProblems, mergeChanges } from './changes.mjs';
 import { authorHash, finding, fromRecord, isBot, recordedFindings, REVIEW_BOT, touchesSensitive } from './pulls.mjs';
 import { loadRepos } from './repos.mjs';
 import { fromSnapshot } from './snapshot.mjs';
+import { fromSweepRecord, parseOutcomes, RUN_FILE, sweepRun, zipEntry } from './sweeps.mjs';
 
 const ROOT = join(import.meta.dirname, '..');
 const OUT = join(ROOT, 'data');
@@ -148,6 +149,53 @@ function snapshot() {
   }
 }
 
+function sweepDetails(id) {
+  const name = `security-sweep-${id}`;
+  const artifact = sh('gh', ['api', `repos/${CONFIG.repo}/actions/runs/${id}/artifacts`, '--jq', `.artifacts[]|select(.name=="${name}")|select(.expired|not)|.id`]).trim().split('\n')[0];
+  let record = null;
+  if (artifact) {
+    const zip = execFileSync('gh', ['api', `repos/${CONFIG.repo}/actions/artifacts/${Number(artifact)}/zip`], { maxBuffer: 64 * 1024 * 1024 });
+    const file = zipEntry(zip, RUN_FILE);
+    record = file ? fromSweepRecord(JSON.parse(file.toString('utf8')), id) : null;
+  }
+  const jobs = gh('api', `repos/${CONFIG.repo}/actions/runs/${id}/jobs`).jobs ?? [];
+  const passes = jobs.length === 1 ? parseOutcomes(sh('gh', ['api', `repos/${CONFIG.repo}/actions/jobs/${Number(jobs[0].id)}/logs`])) : null;
+  return { record, passes };
+}
+
+function readCache(file) {
+  try {
+    return JSON.parse(readFileSync(file, 'utf8'));
+  } catch (e) {
+    if (e.code === 'ENOENT') return null;
+    throw e;
+  }
+}
+
+function sweeps() {
+  if (!CONFIG.workflows.sweep) return undefined;
+  try {
+    const runs = gh('run', 'list', '-R', CONFIG.repo, '--workflow', CONFIG.workflows.sweep, '--limit', '200', '--created', `>=${CONFIG.start}`, '--json', 'databaseId,conclusion,createdAt,status');
+    return runs.map((r) => {
+      const id = Number(r.databaseId);
+      const file = join(CACHE, `sweep-${id}.json`);
+      const cached = readCache(file);
+      if (cached) return sweepRun(r, ...cached);
+      let details = { record: null, passes: null };
+      try {
+        details = sweepDetails(id);
+        if (r.status === 'completed') writeFileSync(file, JSON.stringify([details.record, details.passes]));
+      } catch (e) {
+        console.warn(`security sweep run ${id} unreadable:`, String(e.message ?? e).split('\n')[0].slice(0, 200));
+      }
+      return sweepRun(r, details.record, details.passes);
+    });
+  } catch (e) {
+    console.warn('security sweep runs unavailable:', String(e.message ?? e).split('\n')[0].slice(0, 200));
+    return null;
+  }
+}
+
 function azureCost() {
   if (!CONFIG.azure) return [];
   const { subscription, resourceGroup } = CONFIG.azure;
@@ -225,6 +273,7 @@ function collect() {
     ci: mainCi(),
     codeql: snap?.codeql,
     azure: azureCost(),
+    sweeps: sweeps(),
     grading: optional('grading.json'),
     pulse: optional('pulse.json'),
     changes: mergeChanges(autoChanges(prs, { repo: CONFIG.repo, start: CONFIG.start, paths: CONFIG.changePaths }), manual),
