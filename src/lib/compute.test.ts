@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { hashLogin } from './author';
 import { DEFAULTS, compute, emptyRereviews, filterFindings, ruleToday, sweepState, timing, type Criterion } from './compute';
 import { sample } from './sample';
-import type { Change, Data, Finding, Pr, Run, SweepRun } from './types';
+import type { Change, CrossRun, Data, Finding, Pr, Run, SweepRun } from './types';
 
 const START = '2026-11-09';
 const iso = (s: string) => new Date(s).toISOString();
@@ -349,5 +349,60 @@ describe('security sweep', () => {
     expect(sweepState(sweep({ conclusion: 'skipped', passes: null }))).toBe('skipped');
     expect(sweepState(sweep({ conclusion: 'running', passes: null }))).toBe('running');
     expect(sweepState(sweep({ passes: null }))).toBe('unchecked');
+  });
+});
+
+describe('cross-model review', () => {
+  const cross = (extra: Partial<CrossRun> = {}): CrossRun => ({
+    run_id: 'c1', pr_number: 500, arm: 'treated', started_at: iso('2026-12-07T09:30:00Z'), completed: true, stopped_at_budget: false, model: 'gpt-6.1-sol',
+    cost_usd: 2, tokens: { input: 1000, output: 100, cache_read: 0 }, returned: 3, duplicates: 1, posted: 2, ...extra,
+  });
+  const base = () => reviewed(6, (i) => (i < 4 ? 'fixed' : 'open'), { day: '2026-12-02', now: '2026-12-08T12:00:00Z' });
+  const withCross = (runs: CrossRun[] = [cross()]) => {
+    const d = base();
+    d.prs[0].findings.push(finding('dismissed', 'Important', { reviewer: 'cross-model', posted: iso('2026-12-02T10:05:00Z') }));
+    d.prs[1].findings.push(finding('dismissed', 'Nit', { reviewer: 'cross-model', posted: iso('2026-12-02T10:05:00Z') }));
+    d.prs[2].findings.push(finding('fixed', 'Important', { reviewer: 'cross-model', posted: iso('2026-12-02T10:05:00Z') }));
+    return { ...d, cross: runs };
+  };
+  const main = (d: Data) => {
+    const m = compute(d, DEFAULTS);
+    return { rows: m.rows, posted: m.posted, repo: m.repo, criteria: m.criteria, counts: m.counts, board: m.board, checkout: m.checkout, ours: m.ours, cost: m.ops.cost };
+  };
+
+  it("a cross-model thread does not count toward the main review's metrics", () => {
+    expect(main(withCross([]))).toEqual(main(base()));
+    expect(compute(withCross([]), DEFAULTS).repo.dismissed.k).toBe(0);
+  });
+
+  it('a cross-model run is never the last main review run', () => {
+    const plain = compute(base(), DEFAULTS);
+    const m = compute(withCross([cross({ started_at: iso('2026-12-08T11:00:00Z') })]), DEFAULTS);
+    expect(m.lastRun).toEqual(plain.lastRun);
+    expect(m.reviews).toEqual(plain.reviews);
+    expect(m.reviewedSet).toEqual(plain.reviewedSet);
+    expect(m.firstReview).toEqual(plain.firstReview);
+  });
+
+  it('counts its own findings, fix and dismissed shares and duplicates apart', () => {
+    const c = compute(withCross([cross(), cross({ run_id: 'c2', pr_number: 501, arm: 'shadow', duplicates: 2, posted: 0 })]), DEFAULTS).ops.cross;
+    expect(c).toMatchObject({ configured: true, prs: 2, silentRuns: 1, posted: 3, important: 2, duplicates: 3 });
+    expect([c.fixed.k, c.fixed.n, c.dismissed.k, c.dismissed.n]).toEqual([1, 3, 2, 3]);
+    expect(compute(base(), DEFAULTS).ops.cross).toMatchObject({ configured: false, posted: 0, runs: [] });
+  });
+
+  it('cross-model cost is kept apart from the cost per reviewed pull request', () => {
+    const plain = compute(base(), DEFAULTS);
+    const m = compute(withCross([cross(), cross({ run_id: 'c2', cost_usd: null })]), DEFAULTS);
+    const perPr = ({ perPr, perFix, perImportantFix, run }: typeof m.ops.cost) => ({ perPr, perFix, perImportantFix, run });
+    expect(perPr(m.ops.cost)).toEqual(perPr(plain.ops.cost));
+    expect(m.ops.cross.cost).toEqual({ usd: 2, priced: 1, monthUsd: 2, monthNok: 2 * DEFAULTS.usdNok });
+    expect(m.ops.cross.tokens).toEqual({ input: 2000, output: 200 });
+    expect(m.monthNok).toBeCloseTo(plain.monthNok + 2 * DEFAULTS.usdNok);
+    expect(compute({ ...withCross(), azure: [{ date: '2026-12-01', nok: 300 }] }, DEFAULTS).monthNok).toBe(300);
+  });
+
+  it('shows no cost when no cross-model run record carries one', () => {
+    expect(compute(withCross([cross({ cost_usd: null })]), DEFAULTS).ops.cross.cost).toMatchObject({ usd: null, priced: 0 });
   });
 });

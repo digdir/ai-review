@@ -16,5 +16,12 @@
     "kind": "protocol",
     "note": "Purpose line, the privacy of the author hash, the optional change-log fields and what the criteria do after week 6 added to docs/experiment.md. Thresholds and decision rule unchanged.",
     "because": "Decided by the owner with the dashboard rework, before the measurement starts"
+  },
+  {
+    "date": "2026-11-11",
+    "kind": "model",
+    "ref": "digdir/genki#460",
+    "note": "Cross-model review on security-sensitive pull requests turned on with gpt-6.1-sol.",
+    "because": "Claude writes and reviews most of genki; a second model family looks for shared blind spots."
   }
 ]

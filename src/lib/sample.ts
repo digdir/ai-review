@@ -1,5 +1,5 @@
 import { DAY, WEEK } from './stats';
-import type { AzureDay, Change, CiRun, CodeqlAlert, Data, Grading, Pr, Run, SweepRun } from './types';
+import type { AzureDay, Change, CiRun, CodeqlAlert, CrossRun, Data, Grading, Pr, Run, SweepRun } from './types';
 
 export type SampleState = 'setup' | 'measuring' | 'after';
 
@@ -204,6 +204,30 @@ export function sample(state: SampleState = 'measuring'): Data {
       model: kind === 3 ? null : 'claude-opus-5-5',
     });
   }
+  const cross: CrossRun[] = [];
+  let crossSeed = 7;
+  const crossRnd = () => (crossSeed = (crossSeed * 16807) % 2147483647) / 2147483647;
+  for (const p of prs.filter((x) => x.sensitive && x.arm && !x.bot && x.created >= '2026-11-11')) {
+    const returned = Math.floor(crossRnd() * 4);
+    const duplicates = Math.min(returned, Math.floor(crossRnd() * 2));
+    const fresh = returned - duplicates;
+    const started = Date.parse(p.created) + 9e5;
+    cross.push({
+      run_id: String(5e10 + p.n), pr_number: p.n, arm: p.arm!, started_at: new Date(started).toISOString(), completed: true, stopped_at_budget: crossRnd() < 0.05,
+      model: 'gpt-6.1-sol', cost_usd: 0.3 + crossRnd() * 0.9, tokens: { input: 120000, output: 9000, cache_read: 40000 }, returned, duplicates,
+      posted: p.arm === 'treated' ? fresh : 0,
+    });
+    if (p.arm !== 'treated') continue;
+    for (let j = 0; j < fresh; j++) {
+      const r = crossRnd();
+      const outcome = r < 0.35 ? 'fixed' : r < 0.6 ? 'dismissed' : r < 0.8 ? 'resolved' : 'open';
+      p.findings.push({
+        reviewer: 'cross-model', posted: new Date(started + 6e5).toISOString(), severity: crossRnd() < 0.5 ? 'Important' : 'Nit', category: 'security',
+        title: FINDINGS[Math.floor(crossRnd() * FINDINGS.length)], path: p.files[0], outcome, replies: outcome === 'dismissed' ? 1 : 0,
+        url: `https://github.com/digdir/genki/pull/${p.n}#discussion_c${p.n}${j}`, answered: outcome === 'open' ? null : new Date(started + 5 * 36e5).toISOString(),
+      });
+    }
+  }
   const today = new Date(now).toISOString().slice(0, 10);
   return {
     schema: 'digdir.ai-review.dashboard/v1',
@@ -216,6 +240,7 @@ export function sample(state: SampleState = 'measuring'): Data {
     ci,
     azure,
     sweeps,
+    cross,
     grading: grades.length ? { grades, followup, agreement: 0.66 } : null,
     changes: CHANGES.filter((c) => c.date <= today),
     pulse: [

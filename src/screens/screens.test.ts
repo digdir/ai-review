@@ -74,6 +74,12 @@ describe('the primary question of each page', () => {
     expect(table.match(/class="ds-tag"/g)).toHaveLength(7);
   });
 
+  it('operations shows the cross-model reviewer in its own section', () => {
+    const body = text(p.Operations());
+    expect(body).toMatch(/Cross-model review The cross-model review, in Runbook A second model from another family/);
+    expect(body).toMatch(/Duplicates skipped \d+ already posted by the main review/);
+  });
+
   it('pull requests lists the pull requests and what waits on an answer', () => {
     const body = text(p['Pull requests']());
     expect(body).toMatch(/Waiting on authors \d+ threads?/);

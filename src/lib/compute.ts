@@ -1,7 +1,7 @@
 import { day, fmt, hours, nok, pct, plural, signed, usd, weekday } from './format';
 import { CATS, CAT, CRITERIA, DECISION, SETUP_ITEMS, type CriterionKey } from './labels';
 import { DAY, WEEK, median, monday, quant, rate, sum, type Rate } from './stats';
-import type { Change, Check, Data, Decision, ExperimentConfig, Finding, Phase, Pr, Run, Severity, Status, SweepRun } from './types';
+import type { Change, Check, CrossRun, Data, Decision, ExperimentConfig, Finding, Phase, Pr, Run, Severity, Status, SweepRun } from './types';
 
 export const DEFAULTS: ExperimentConfig = {
   weeks: 6,
@@ -28,6 +28,7 @@ export const READ = { fix: 10, dismissed: 20, precision: 50, ttm: 20, silent: 10
 const FIX_TITLE = /^(fix|revert|restore|stop|keep)\b/i;
 const SETUP_KINDS: Change['kind'][] = ['rule', 'model', 'procedure', 'workflow'];
 const isReview = (r: Run) => (r.job ?? 'review') === 'review';
+export const isMainFinding = (f: Finding) => (f.reviewer ?? 'main') === 'main';
 const ms = (iso: string) => Date.parse(iso);
 const changeMs = (c: Change) => ms(c.date + 'T12:00:00Z');
 
@@ -131,7 +132,7 @@ export function compute(D: Data, C: ExperimentConfig) {
     const group = groupOf(p, reviewedSet);
     const base = { pr: p.n, prTitle: p.title, merged: !!p.merged, group, author: p.author_hash ?? null };
     return [
-      ...p.findings.map((f: Finding) => ({
+      ...p.findings.filter(isMainFinding).map((f: Finding) => ({
         ...base,
         posted: f.posted,
         severity: f.severity,
@@ -183,7 +184,9 @@ export function compute(D: Data, C: ExperimentConfig) {
   const sweepRuns = [...(D.sweeps ?? [])].sort((a, b) => b.started_at.localeCompare(a.started_at));
   const sweepMonth = sweepRuns.filter((x) => ms(x.started_at) >= monthStart && ms(x.started_at) < monthEnd);
   const sweepMonthNok = sum(sweepMonth.map((x) => x.cost_usd)) * C.usdNok;
-  const monthNok = haveAzure ? sum(azureMonth.map((a) => a.nok)) : runCost(D.runs.filter((x) => ms(x.started_at) >= monthStart)) + sweepMonthNok;
+  const crossRuns = [...(D.cross ?? [])].sort((a, b) => b.started_at.localeCompare(a.started_at));
+  const crossMonthUsd = sum(crossRuns.filter((x) => ms(x.started_at) >= monthStart && ms(x.started_at) < monthEnd).map((x) => x.cost_usd));
+  const monthNok = haveAzure ? sum(azureMonth.map((a) => a.nok)) : runCost(D.runs.filter((x) => ms(x.started_at) >= monthStart)) + sweepMonthNok + crossMonthUsd * C.usdNok;
   const elapsed = (now - Math.max(monthStart, startMs)) / DAY;
   const projectedRaw = monthNok + (monthNok / Math.max(1, elapsed)) * Math.max(0, (monthEnd - now) / DAY);
   const projected = elapsed >= READ.costDays ? projectedRaw : null;
@@ -419,6 +422,7 @@ export function compute(D: Data, C: ExperimentConfig) {
       runs: sweepRuns.map((x) => ({ ...x, state: sweepState(x) })),
       month: { runs: sweepMonth.length, nok: sweepMonthNok, usd: sum(sweepMonth.map((x) => x.cost_usd)) },
     },
+    cross: crossReview(D, crossRuns, crossMonthUsd, C.usdNok, r),
   };
 
   const setup: CheckItem[] = SETUP_ITEMS.map(([key, name, hint]) => {
@@ -501,6 +505,25 @@ export function compute(D: Data, C: ExperimentConfig) {
     now, T, phase, week, decided, gradingContinues, health, winFrom, winTo, windowLabel, changes, criteria, counts, rule, board, repo, ops, setup,
     checklist, checkout, ours, rows, posted, onMerged, firstReview, monthNok, projected, daysLeftMonth, haveAzure, lastRun, reviewedSet,
     reviews, since, baseT, reworkBase, mergeChange, vsSilent, precision: precW, important: impW, dismissed: disW,
+  };
+}
+
+/** The cross-model reviewer on its own, never mixed into the main review's figures. */
+export function crossReview(D: Data, runs: CrossRun[], monthUsd: number, usdNok: number, r: (k: number, n: number) => Rate) {
+  const found = D.prs.flatMap((p) => p.findings.filter((f) => !isMainFinding(f)));
+  const priced = runs.filter((x) => x.cost_usd != null);
+  return {
+    configured: D.cross !== undefined,
+    runs,
+    prs: new Set(runs.map((x) => x.pr_number)).size,
+    silentRuns: runs.filter((x) => x.arm === 'shadow').length,
+    posted: found.length,
+    important: found.filter((f) => f.severity === 'Important').length,
+    fixed: r(found.filter((f) => f.outcome === 'fixed').length, found.length),
+    dismissed: r(found.filter((f) => f.outcome === 'dismissed').length, found.length),
+    duplicates: sum(runs.map((x) => x.duplicates)),
+    cost: { usd: priced.length ? sum(priced.map((x) => x.cost_usd)) : null, priced: priced.length, monthUsd, monthNok: monthUsd * usdNok },
+    tokens: { input: sum(runs.map((x) => x.tokens.input)), output: sum(runs.map((x) => x.tokens.output)) },
   };
 }
 

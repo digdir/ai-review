@@ -34,6 +34,12 @@ describe('findings for a week', () => {
     expect(weekFindings(rs, many(['fixed', 'open']), 3)[0].outcome).toBe('unknown');
   });
 
+  it('a cross-model thread does not decide the outcome of a graded finding', () => {
+    const rs = [record(430, 'treated', '2026-11-24T09:00:00Z', [f('One')])];
+    const both = { ...data, prs: [{ n: 430, findings: [{ path: 'a.ts', line: null, severity: 'Nit', outcome: 'fixed' }, { path: 'a.ts', line: null, severity: 'Nit', outcome: 'open', reviewer: 'cross-model' }] }] };
+    expect(weekFindings(rs, both, 3)[0].outcome).toBe('fixed');
+  });
+
   it('counts a finding repeated by a second review of the same pull request once', () => {
     const rs = [record(430, 'treated', '2026-11-24T09:00:00Z', [f('Same')], 'r1'), record(430, 'treated', '2026-11-25T09:00:00Z', [f('Same')], 'r2')];
     expect(weekFindings(rs, data, 3).map((x) => x.run)).toEqual(['r1']);
