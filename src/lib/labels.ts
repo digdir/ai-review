@@ -132,7 +132,7 @@ export const SETUP_ITEMS: [string, string, string][] = [
 
 export const SCREENS = [
   ['overview', 'Overview'],
-  ['repository', 'Repository'],
+  ['pull-requests', 'Pull requests'],
   ['findings', 'Findings'],
   ['operations', 'Operations'],
 ] as const;
@@ -140,18 +140,19 @@ export const SCREENS = [
 export type Screen = (typeof SCREENS)[number][0];
 
 export const OLD_SCREENS: Record<string, Screen> = {
-  quality: 'repository',
-  noise: 'repository',
-  delivery: 'repository',
+  repository: 'pull-requests',
+  quality: 'findings',
+  noise: 'findings',
+  delivery: 'pull-requests',
   security: 'findings',
   cost: 'operations',
   runs: 'operations',
   experiment: 'overview',
   oversikt: 'overview',
-  kvalitet: 'repository',
+  kvalitet: 'findings',
   sikkerhet: 'findings',
-  stoy: 'repository',
-  vakt: 'repository',
+  stoy: 'findings',
+  vakt: 'pull-requests',
   kostnad: 'operations',
   kjoringer: 'operations',
   om: 'overview',

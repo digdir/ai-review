@@ -43,7 +43,7 @@ npm run collect   # read the repositories into data/
 npm run dev       # the dashboard with hot reload
 ```
 
-Without logins, open the dashboard and pick a moment under **Sample data** in the top bar (week 1, week 5 or after the experiment) to see it with sample data in the real shape.
+Without logins, run `npm run dev` and open the dashboard with `?sample=setup`, `?sample=measuring` or `?sample=after` (week 1, week 5 or after the experiment) to see it with sample data in the real shape.
 
 ## Documentation map
 
@@ -64,7 +64,7 @@ inputs/<owner>/<name>/        hand-entered data: changes, grading, pulse
 dashboard/                    collector, change log, grading and weekly issue (plain Node)
 src/                          the dashboard (Svelte 5 and TypeScript)
   lib/compute.ts              every metric and criterion
-  screens/                    Overview, Repository, Findings and Operations
+  screens/                    Overview, Pull requests, Findings and Operations
   views/                      Repositories, Start here, Docs and one repository
 docs/                         the documentation above, also rendered in the dashboard under Docs
 .github/workflows/            dashboard.yml (every 20 min by day, hourly otherwise), weekly.yml (Mondays)

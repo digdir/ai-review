@@ -339,7 +339,7 @@ export function compute(D: Data, C: ExperimentConfig) {
       const from = startMs + i * WEEK;
       const prsW = new Set(reviews.filter((x) => x.arm !== 'shadow' && ms(x.started_at) >= from && ms(x.started_at) < from + WEEK).map((x) => x.pr_number));
       const fs = posted.filter((f) => ms(f.posted) >= from && ms(f.posted) < from + WEEK);
-      return { week: i + 1, setup: i + 1 < C.measureFromWeek, prs: prsW.size, perPr: prsW.size ? fs.length / prsW.size : null };
+      return { week: i + 1, setup: i + 1 < C.measureFromWeek, prs: prsW.size, perPr: prsW.size ? fs.length / prsW.size : null, posted: fs.length, fixed: fixedRate(fs), dismissed: dismissedRate(fs) };
     }),
     side: {
       ready: sinceSilent.length >= READ.silent,

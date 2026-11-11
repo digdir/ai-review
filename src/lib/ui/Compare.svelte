@@ -1,55 +1,47 @@
 <script lang="ts">
   import { COMPARE, HOW_ANTHROPIC } from '../compare';
-  import Explain from './Explain.svelte';
+  import TableRegion from './TableRegion.svelte';
 
   let { ours }: { ours: Record<string, string> } = $props();
 </script>
 
-<section class="panel" id="compare">
-  <header>
-    <h2>How we compare</h2>
-    <span class="meta inline">Ours in bold. Read the caveat before the number.</span>
-    <Explain
-      name="the comparison"
-      means="Our number beside Anthropic's published internal figures and independent studies. Each row says what makes the comparison imperfect; none is like for like."
-      source="Figures quoted from the linked sources in a research note of 10 Nov 2026, kept in src/lib/compare.ts. Ours from the same computation as the criteria."
-      doc={['experiment', 'question']}
-      docLabel="The question and hypotheses"
-    />
-  </header>
-  <div class="twrap">
-    <table class="stack">
-      <thead><tr><th>Measure</th><th>Ours</th><th>Anthropic, internal</th><th>Published elsewhere</th><th>Comparable?</th></tr></thead>
-      <tbody>
-        {#each COMPARE as row (row.key)}
-          <tr>
-            <td data-l="Measure" class="full"><b>{row.name}</b></td>
-            <td data-l="Ours" class="ours">{ours[row.key]}</td>
-            <td data-l="Anthropic, internal">{row.anthropic}</td>
-            <td data-l="Published elsewhere">{row.published}</td>
-            <td data-l="Comparable?" class="full">
-              <span class="small muted">{row.caveat}</span>
-              {#each row.sources as s (s.url)}<a class="xs src" href={s.url}>{s.label}</a>{/each}
-            </td>
-          </tr>
-        {/each}
-      </tbody>
-    </table>
-  </div>
-  <div class="body two topline">
-    <div>
-      <h3>How Anthropic does it</h3>
-      <p class="small gap-top">{HOW_ANTHROPIC.does} <a href={HOW_ANTHROPIC.source.url}>{HOW_ANTHROPIC.source.label}</a>.</p>
-    </div>
-    <div class="two">
-      <div>
-        <h4 class="eyebrow">What we copied</h4>
-        <ul class="small bullets">{#each HOW_ANTHROPIC.copied as x (x)}<li>{x}</li>{/each}</ul>
+<details class="ds-details" id="compare">
+  <summary>How we compare with published figures</summary>
+  <div class="section">
+    <p class="section-desc">
+      Our numbers beside Anthropic's published internal figures and independent studies. None is like for like; each row says why. The figures were
+      quoted from the linked sources on 10 Nov 2026.
+    </p>
+    <TableRegion label="How we compare">
+      <table class="ds-table stacked" data-size="sm">
+        <thead><tr><th>Measure</th><th>Ours</th><th>Anthropic, internal</th><th>Published elsewhere</th><th>Why it differs</th></tr></thead>
+        <tbody>
+          {#each COMPARE as row (row.key)}
+            <tr>
+              <td class="lead">{row.name}</td>
+              <td data-l="Ours"><b>{ours[row.key]}</b></td>
+              <td data-l="Anthropic, internal">{row.anthropic}</td>
+              <td data-l="Published elsewhere">{row.published}</td>
+              <td data-l="Why it differs">
+                {row.caveat}
+                <span class="sub">{#each row.sources as s, i (s.url)}{i ? ', ' : ''}<a class="ds-link" href={s.url}>{s.label}</a>{/each}</span>
+              </td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    </TableRegion>
+    <div class="columns">
+      <div class="prose small">
+        <h3 class="ds-heading" data-size="2xs">How Anthropic does it</h3>
+        <p>{HOW_ANTHROPIC.does} <a class="ds-link" href={HOW_ANTHROPIC.source.url}>{HOW_ANTHROPIC.source.label}</a>.</p>
       </div>
-      <div>
-        <h4 class="eyebrow">What differs</h4>
-        <ul class="small bullets">{#each HOW_ANTHROPIC.differs as x (x)}<li>{x}</li>{/each}</ul>
+      <div class="prose small">
+        <h3 class="ds-heading" data-size="2xs">What we copied</h3>
+        <ul>{#each HOW_ANTHROPIC.copied as x (x)}<li>{x}</li>{/each}</ul>
+        <h3 class="ds-heading" data-size="2xs">What differs</h3>
+        <ul>{#each HOW_ANTHROPIC.differs as x (x)}<li>{x}</li>{/each}</ul>
       </div>
     </div>
   </div>
-</section>
+</details>
